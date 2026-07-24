@@ -6,7 +6,7 @@ export default class SheliakExtension extends Extension {
     private _dock: Dock | null = null;
 
     enable(): void {
-        this._dock = new Dock();
+        this._dock = new Dock(this.getSettings('org.gnome.shell.extensions.sheliak'));
     }
 
     disable(): void {

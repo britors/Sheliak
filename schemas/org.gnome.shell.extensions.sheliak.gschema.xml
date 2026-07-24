@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.sheliak" path="/org/gnome/shell/extensions/sheliak/">
+    <key name="position" type="s"><default>'bottom'</default><summary>Dock position</summary></key>
+    <key name="autohide" type="b"><default>true</default><summary>Automatically hide the dock</summary></key>
+    <key name="hide-delay" type="u"><default>400</default><summary>Auto-hide delay in milliseconds</summary></key>
+    <key name="icon-size" type="u"><default>40</default><summary>Application icon size</summary></key>
+    <key name="edge-margin" type="u"><default>8</default><summary>Distance from the screen edge</summary></key>
+    <key name="animation" type="b"><default>true</default><summary>Animate dock visibility</summary></key>
+    <key name="show-running" type="b"><default>true</default><summary>Show running applications</summary></key>
+    <key name="show-trash" type="b"><default>true</default><summary>Show the trash button</summary></key>
+    <key name="show-apps-button" type="b"><default>true</default><summary>Show the applications button</summary></key>
+    <key name="fullscreen-hide" type="b"><default>true</default><summary>Hide in fullscreen</summary></key>
+  </schema>
+</schemalist>

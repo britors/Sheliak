@@ -26,16 +26,22 @@ test -f dist/extension.js
 install -d %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org
 install -m 0644 \
     dist/extension.js \
+    dist/prefs.js \
     dist/metadata.json \
     dist/stylesheet.css \
     %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/
+install -d %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas
+install -m 0644 dist/schemas/* \
+    %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas/
 
 %files
 %license LICENSE
 %doc README.md
 %dir %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/extension.js
+%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/prefs.js
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/metadata.json
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/stylesheet.css
+%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas
 
 %changelog

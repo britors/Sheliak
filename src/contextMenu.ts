@@ -14,7 +14,7 @@ export class AppContextMenu {
     constructor(source: St.Widget, app: Shell.App) {
         this._app = app;
         this._favorites = AppFavorites.getAppFavorites();
-        this.menu = new PopupMenu.PopupMenu(source, 0.5, St.Side.LEFT);
+        this.menu = new PopupMenu.PopupMenu(source, 0.5, St.Side.BOTTOM);
         this.menu.actor.add_style_class_name('sheliak-menu');
         Main.uiGroup.add_child(this.menu.actor);
         this.menu.actor.hide();

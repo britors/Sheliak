@@ -8,7 +8,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {AppContextMenu} from './contextMenu.js';
 import {SignalTracker} from './signals.js';
 
-const ICON_SIZE = 40;
+const DEFAULT_ICON_SIZE = 40;
 
 function toggleStyle(actor: St.Widget, name: string, enabled: boolean): void {
     if (enabled)
@@ -27,6 +27,8 @@ export class AppIcon {
         app: Shell.App,
         menuManager: PopupMenu.PopupMenuManager,
         favorite: boolean,
+        onMenuStateChanged?: (open: boolean) => void,
+        iconSize = DEFAULT_ICON_SIZE,
     ) {
         this._app = app;
         this.actor = new St.Button({
@@ -36,10 +38,14 @@ export class AppIcon {
             track_hover: true,
             accessible_name: app.get_name(),
         });
-        this.actor.set_child(app.create_icon_texture(ICON_SIZE));
+        this.actor.set_child(app.create_icon_texture(iconSize));
 
         this.menu = new AppContextMenu(this.actor, app);
         menuManager.addMenu(this.menu.menu);
+        if (onMenuStateChanged) {
+            this._signals.connect(this.menu.menu, 'open-state-changed',
+                (_menu: unknown, open: boolean) => onMenuStateChanged(open));
+        }
 
         this._signals.connect(this.actor, 'button-release-event',
             (_actor, event: Clutter.Event) => {

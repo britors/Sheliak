@@ -4,7 +4,7 @@
  */
 .sheliak-dock {
   spacing: 6px;
-  padding: 10px 6px;
+  padding: 6px 10px;
   border-radius: 16px;
   background-color: rgba(32, 36, 43, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -42,22 +42,22 @@
 }
 
 .sheliak-app-button.running {
-  border-left: 3px solid rgba(225, 230, 236, 0.88);
-  padding-left: 3px;
+  border-bottom: 3px solid rgba(225, 230, 236, 0.88);
+  padding-bottom: 3px;
 }
 
 .sheliak-dock.lyra-theme .sheliak-app-button.running {
   /* lyra-mist; running-only remains distinct through opacity */
-  border-left-color: #cdd6e0;
+  border-bottom-color: #cdd6e0;
 }
 
 .sheliak-app-button.running-only {
-  border-left-color: rgba(205, 214, 224, 0.58);
+  border-bottom-color: rgba(205, 214, 224, 0.58);
 }
 
 .sheliak-separator {
-  height: 1px;
-  margin: 3px 5px;
+  width: 1px;
+  margin: 5px 3px;
   background-color: rgba(255, 255, 255, 0.16);
 }
 

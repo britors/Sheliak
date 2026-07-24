@@ -17,7 +17,9 @@ pack: dist
 
 install: dist
 	install -d "$(EXTENSIONDIR)"
-	install -m 0644 dist/extension.js dist/metadata.json dist/stylesheet.css "$(EXTENSIONDIR)"
+	install -m 0644 dist/extension.js dist/prefs.js dist/metadata.json dist/stylesheet.css "$(EXTENSIONDIR)"
+	install -d "$(EXTENSIONDIR)/schemas"
+	install -m 0644 dist/schemas/* "$(EXTENSIONDIR)/schemas"
 
 clean:
 	npm run clean

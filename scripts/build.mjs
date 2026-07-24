@@ -1,5 +1,9 @@
 import {build} from 'esbuild';
 import {cp, mkdir, rm} from 'node:fs/promises';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const outdir = new URL('../dist/', import.meta.url);
 
@@ -18,7 +22,24 @@ await build({
     legalComments: 'none',
 });
 
+await build({
+    entryPoints: [new URL('../src/prefs.ts', import.meta.url).pathname],
+    outfile: new URL('prefs.js', outdir).pathname,
+    bundle: true,
+    format: 'esm',
+    platform: 'neutral',
+    target: 'es2022',
+    external: ['gi://*', 'resource://*'],
+    sourcemap: false,
+    legalComments: 'none',
+});
+
 await Promise.all([
     cp(new URL('../metadata.json', import.meta.url), new URL('metadata.json', outdir)),
     cp(new URL('../stylesheet.css', import.meta.url), new URL('stylesheet.css', outdir)),
+    mkdir(new URL('schemas/', outdir), {recursive: true}),
+    cp(new URL('../schemas/org.gnome.shell.extensions.sheliak.gschema.xml', import.meta.url),
+        new URL('schemas/org.gnome.shell.extensions.sheliak.gschema.xml', outdir)),
 ]);
+
+await execFileAsync('glib-compile-schemas', [new URL('schemas/', outdir).pathname]);
