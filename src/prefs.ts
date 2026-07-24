@@ -39,6 +39,23 @@ function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
     group.add(row);
 }
 
+function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
+    const row = new Adw.ActionRow({title: 'Visibilidade do dock', subtitle: 'Como o dock deve permanecer na tela'});
+    const values = [
+        ['intelligent', 'Ocultação inteligente'],
+        ['autohide', 'Auto hide'],
+        ['always', 'Sempre ativo'],
+    ];
+    const model = Gtk.StringList.new(values.map(([, label]) => label));
+    const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
+    const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('hide-mode')));
+    combo.selected = selected();
+    combo.connect('notify::selected', () => settings.set_string('hide-mode', values[combo.selected]?.[0] ?? 'intelligent'));
+    settings.connect('changed::hide-mode', () => combo.set_selected(selected()));
+    row.add_suffix(combo);
+    group.add(row);
+}
+
 export default class SheliakPreferences extends ExtensionPreferences {
     async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         const settings = this.getSettings(SCHEMA);
@@ -52,8 +69,8 @@ export default class SheliakPreferences extends ExtensionPreferences {
 
         const behavior = new Adw.PreferencesPage({title: 'Comportamento', icon_name: 'preferences-system-symbolic'});
         const behaviorGroup = new Adw.PreferencesGroup({title: 'Comportamento'});
-        addSwitch(behaviorGroup, settings, 'autohide', 'Ocultar automaticamente', 'Mostrar o dock ao aproximar o cursor da borda');
-        addSpin(behaviorGroup, settings, 'hide-delay', 'Atraso para ocultar', 'Milissegundos', 100, 3000, 100);
+        addHideMode(behaviorGroup, settings);
+        addSpin(behaviorGroup, settings, 'hide-delay', 'Atraso para ocultar', 'Após uma janela alcançar o dock, em milissegundos', 100, 3000, 100);
         addSwitch(behaviorGroup, settings, 'fullscreen-hide', 'Ocultar em tela cheia', 'Não cobrir aplicativos em tela cheia');
         behavior.add(behaviorGroup);
 

@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -19,6 +20,7 @@ const SETTINGS_SCHEMA = 'org.gnome.shell.extensions.sheliak';
 export class Dock {
     readonly actor: St.BoxLayout;
     private _appsBox: St.BoxLayout;
+    private _separator: St.Widget;
     private _appSystem = Shell.AppSystem.get_default();
     private _favorites = AppFavorites.getAppFavorites();
     private _icons: AppIcon[] = [];
@@ -34,6 +36,7 @@ export class Dock {
     private _openMenuCount = 0;
     private _hidden = false;
     private _hideTimeoutId = 0;
+    private _redisplayTimeoutId = 0;
     private _laidOutOnce = false;
     private _settings: Gio.Settings;
 
@@ -53,8 +56,8 @@ export class Dock {
         });
         this.actor.add_child(this._appsBox);
 
-        const separator = new St.Widget({style_class: 'sheliak-separator'});
-        this.actor.add_child(separator);
+        this._separator = new St.Widget({style_class: 'sheliak-separator'});
+        this.actor.add_child(this._separator);
 
         this._trash = new TrashIcon();
         this._showApps = new ShowAppsButton();
@@ -104,11 +107,24 @@ export class Dock {
 
         this._signals.connect(this._favorites, 'changed', () => this._redisplay());
         this._signals.connect(this._appSystem, 'app-state-changed',
-            () => this._redisplay());
+            () => this._queueRedisplay());
         this._signals.connect(Main.layoutManager, 'monitors-changed',
             () => this._relayout());
+        this._signals.connect(global.display, 'restacked',
+            () => this._syncVisibility());
+        this._signals.connect(global.display, 'window-created',
+            (_display, window: Meta.Window) => {
+                this._trackWindow(window);
+                this._syncVisibility();
+            });
+        this._signals.connect(global.workspace_manager, 'active-workspace-changed',
+            () => this._syncVisibility());
+        for (const windowActor of global.get_window_actors()) {
+            if (windowActor.meta_window)
+                this._trackWindow(windowActor.meta_window);
+        }
         for (const key of ['position', 'icon-size', 'edge-margin', 'animation',
-            'autohide', 'hide-delay', 'show-running', 'show-trash',
+            'hide-mode', 'hide-delay', 'show-running', 'show-trash',
             'show-apps-button', 'fullscreen-hide']) {
             this._signals.connect(this._settings, `changed::${key}`,
                 () => this._applySettings());
@@ -130,6 +146,10 @@ export class Dock {
         if (this._hideTimeoutId) {
             GLib.source_remove(this._hideTimeoutId);
             this._hideTimeoutId = 0;
+        }
+        if (this._redisplayTimeoutId) {
+            GLib.source_remove(this._redisplayTimeoutId);
+            this._redisplayTimeoutId = 0;
         }
         this._signals.destroy();
         for (const icon of this._icons.splice(0))
@@ -164,6 +184,16 @@ export class Dock {
         this._relayout();
     }
 
+    private _queueRedisplay(): void {
+        if (this._redisplayTimeoutId)
+            GLib.source_remove(this._redisplayTimeoutId);
+        this._redisplayTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            this._redisplayTimeoutId = 0;
+            this._redisplay();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     private _onMenuStateChanged(open: boolean): void {
         this._openMenuCount += open ? 1 : -1;
         this._syncVisibility();
@@ -182,19 +212,116 @@ export class Dock {
             return;
         }
 
-        if (!this._settings.get_boolean('autohide')) {
+        const mode = this._settings.get_string('hide-mode');
+        if (mode === 'always') {
             this._setHidden(false);
             return;
         }
+
+        if (mode === 'intelligent' && !this._windowOverlapsDock()) {
+            this._setHidden(false);
+            return;
+        }
+
+        if (this._hidden)
+            return;
+
         this._hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
             this._settings.get_uint('hide-delay'), () => {
                 this._hideTimeoutId = 0;
-                this._setHidden(true);
+                if (this._windowOverlapsDock())
+                    this._setHidden(true);
                 return GLib.SOURCE_REMOVE;
             });
     }
 
+    private _trackWindow(window: Meta.Window): void {
+        for (const signal of ['position-changed', 'size-changed',
+            'workspace-changed', 'notify::minimized']) {
+            this._signals.connect(window, signal, () => this._syncVisibility());
+        }
+    }
+
+    private _windowOverlapsDock(): boolean {
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor)
+            return false;
+
+        const [x, y, width, height] = this._shownGeometry();
+        const workspace = global.workspace_manager.get_active_workspace();
+
+        return global.get_window_actors().some(windowActor => {
+            const window = windowActor.meta_window;
+            if (!window || window.minimized || !window.showing_on_its_workspace()
+                || window.get_workspace() !== workspace
+                || window.get_monitor() !== Main.layoutManager.primaryIndex) {
+                return false;
+            }
+
+            const type = window.get_window_type();
+            if (type === Meta.WindowType.DESKTOP || type === Meta.WindowType.DOCK)
+                return false;
+
+            const rect = window.get_frame_rect();
+            return rect.x < x + width && rect.x + rect.width > x
+                && rect.y < y + height && rect.y + rect.height > y;
+        });
+    }
+
+    private _shownGeometry(): [number, number, number, number] {
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor)
+            return [0, 0, 0, 0];
+
+        const position = this._settings.get_string('position');
+        const margin = this._settings.get_uint('edge-margin');
+        const horizontal = position === 'top' || position === 'bottom';
+        const [naturalWidth, naturalHeight] = this._naturalDockSize(horizontal);
+        const width = horizontal
+            ? Math.min(naturalWidth, Math.max(1, monitor.width - margin * 2))
+            : naturalWidth;
+        const height = horizontal
+            ? naturalHeight
+            : Math.min(naturalHeight, Math.max(1, monitor.height - margin * 2));
+
+        let x = monitor.x + Math.floor((monitor.width - width) / 2);
+        let y = monitor.y + monitor.height - margin - height;
+        if (position === 'top') {
+            y = monitor.y + margin;
+        } else if (position === 'left') {
+            x = monitor.x + margin;
+            y = monitor.y + Math.floor((monitor.height - height) / 2);
+        } else if (position === 'right') {
+            x = monitor.x + monitor.width - margin - width;
+            y = monitor.y + Math.floor((monitor.height - height) / 2);
+        }
+
+        return [x, y, width, height];
+    }
+
+    private _naturalDockSize(horizontal: boolean): [number, number] {
+        const children = [this._appsBox, this._separator, this._trash.actor, this._showApps.actor]
+            .filter(child => child.visible);
+        const sizes = children.map(child => {
+            const [, width] = child.get_preferred_width(-1);
+            const [, height] = child.get_preferred_height(-1);
+            return [width, height];
+        });
+        const spacing = this.actor.get_theme_node().get_length('spacing') ?? 0;
+        const horizontalSize = horizontal
+            ? sizes.reduce((total, [width]) => total + width, 0) + Math.max(0, sizes.length - 1) * spacing
+            : Math.max(0, ...sizes.map(([width]) => width));
+        const verticalSize = horizontal
+            ? Math.max(0, ...sizes.map(([, height]) => height))
+            : sizes.reduce((total, [, height]) => total + height, 0) + Math.max(0, sizes.length - 1) * spacing;
+        const themeNode = this.actor.get_theme_node();
+        return [horizontalSize + themeNode.get_horizontal_padding(),
+            verticalSize + themeNode.get_vertical_padding()];
+    }
+
     private _setHidden(hidden: boolean): void {
+        if (this._hidden === hidden)
+            return;
         this._hidden = hidden;
         this._relayout();
     }
@@ -218,33 +345,24 @@ export class Dock {
         }
         this._trash.actor.visible = this._settings.get_boolean('show-trash');
         this._showApps.actor.visible = this._settings.get_boolean('show-apps-button');
+        this._separator.visible = this._trash.actor.visible || this._showApps.actor.visible;
 
-        const [, naturalWidth] = this.actor.get_preferred_width(-1);
-        const [, naturalHeight] = this.actor.get_preferred_height(-1);
-        const width = horizontal ? Math.min(naturalWidth, Math.max(1, monitor.width - margin * 2)) : naturalWidth;
-        const height = horizontal ? naturalHeight : Math.min(naturalHeight, Math.max(1, monitor.height - margin * 2));
+        const [shownX, shownY, width, height] = this._shownGeometry();
         this.actor.set_size(width, height);
 
-        let x = monitor.x + Math.floor((monitor.width - width) / 2);
-        let shownY = monitor.y + monitor.height - margin - height;
-        let hiddenX = x;
+        let hiddenX = shownX;
         let hiddenY = monitor.y + monitor.height;
         if (position === 'top') {
-            shownY = monitor.y + margin;
             hiddenY = monitor.y - height;
         } else if (position === 'left') {
-            x = monitor.x + margin;
-            shownY = monitor.y + Math.floor((monitor.height - height) / 2);
             hiddenX = monitor.x - width;
             hiddenY = shownY;
         } else if (position === 'right') {
-            x = monitor.x + monitor.width - margin - width;
-            shownY = monitor.y + Math.floor((monitor.height - height) / 2);
             hiddenX = monitor.x + monitor.width;
             hiddenY = shownY;
         }
 
-        const targetX = this._hidden ? hiddenX : x;
+        const targetX = this._hidden ? hiddenX : shownX;
         const y = this._hidden ? hiddenY : shownY;
         if (this._laidOutOnce) {
             this.actor.save_easing_state();
