@@ -6,6 +6,7 @@ License:        GPL-3.0-or-later
 URL:            https://github.com/lyra-os/Sheliak
 Source0:        %{name}-%{version}.tar.zst
 BuildArch:      noarch
+BuildRequires:  zstd
 Requires:       gnome-shell >= 48
 Requires:       gnome-shell < 49
 
