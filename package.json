@@ -1,0 +1,19 @@
+{
+  "name": "sheliak",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dock nativo do Lyra OS para GNOME Shell 48",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "pack": "npm run build && cd dist && zip -qr ../sheliak@lyraos.org.zip ."
+  },
+  "devDependencies": {
+    "@girs/gnome-shell": "^48.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.zip
+*.tar.zst
+npm-debug.log*

@@ -1,0 +1,66 @@
+/*
+ * The neutral rules inherit the active Shell theme. Lyra tokens are scoped to
+ * .lyra-theme so installing Sheliak never imposes the Lyra palette on others.
+ */
+.sheliak-dock {
+  spacing: 6px;
+  padding: 10px 6px;
+  border-radius: 16px;
+  background-color: rgba(32, 36, 43, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30);
+}
+
+.sheliak-dock.lyra-theme {
+  /* lyra-slate-alt, with transparency */
+  background-color: rgba(34, 40, 49, 0.78);
+  /* lyra-mist */
+  border-color: rgba(205, 214, 224, 0.18);
+}
+
+.sheliak-apps {
+  spacing: 4px;
+}
+
+.sheliak-app-button,
+.sheliak-system-button {
+  padding: 6px;
+  border-radius: 12px;
+  transition-duration: 120ms;
+}
+
+.sheliak-app-button:hover,
+.sheliak-app-button:focus,
+.sheliak-system-button:hover,
+.sheliak-system-button:focus {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.sheliak-app-button:active,
+.sheliak-system-button:active {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.sheliak-app-button.running {
+  border-left: 3px solid rgba(225, 230, 236, 0.88);
+  padding-left: 3px;
+}
+
+.sheliak-dock.lyra-theme .sheliak-app-button.running {
+  /* lyra-mist; running-only remains distinct through opacity */
+  border-left-color: #cdd6e0;
+}
+
+.sheliak-app-button.running-only {
+  border-left-color: rgba(205, 214, 224, 0.58);
+}
+
+.sheliak-separator {
+  height: 1px;
+  margin: 3px 5px;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.sheliak-menu {
+  min-width: 220px;
+}
