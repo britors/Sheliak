@@ -38,6 +38,8 @@ install -m 0644 dist/schemas/* \
 %files
 %license LICENSE
 %doc README.md
+%dir %{_datadir}/gnome-shell
+%dir %{_datadir}/gnome-shell/extensions
 %dir %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/extension.js
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/prefs.js
