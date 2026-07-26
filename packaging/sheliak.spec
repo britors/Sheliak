@@ -34,6 +34,9 @@ install -m 0644 \
 install -d %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas
 install -m 0644 dist/schemas/* \
     %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas/
+install -d %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/icons
+install -m 0644 dist/icons/* \
+    %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/icons/
 
 %files
 %license LICENSE
@@ -46,5 +49,6 @@ install -m 0644 dist/schemas/* \
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/metadata.json
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/stylesheet.css
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas
+%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/icons
 
 %changelog

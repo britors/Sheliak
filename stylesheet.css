@@ -11,6 +11,10 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30);
 }
 
+.sheliak-dock.squared {
+  border-radius: 0;
+}
+
 .sheliak-dock.lyra-theme {
   /* lyra-slate-alt, with transparency */
   background-color: rgba(34, 40, 49, 0.78);

@@ -39,6 +39,32 @@ function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
     group.add(row);
 }
 
+function addContentAlignment(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
+    const row = new Adw.ActionRow({title: 'Alinhamento', subtitle: 'Posição dos favoritos, apps abertos e lixeira ao longo do dock'});
+    const values = [['start', 'Início'], ['center', 'Centro'], ['end', 'Fim']];
+    const model = Gtk.StringList.new(values.map(([, label]) => label));
+    const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
+    const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('content-alignment')));
+    combo.selected = selected();
+    combo.connect('notify::selected', () => settings.set_string('content-alignment', values[combo.selected]?.[0] ?? 'center'));
+    settings.connect('changed::content-alignment', () => combo.set_selected(selected()));
+    row.add_suffix(combo);
+    group.add(row);
+}
+
+function addRunningAppsPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
+    const row = new Adw.ActionRow({title: 'Posição dos apps abertos', subtitle: 'Onde aplicativos em execução aparecem em relação aos favoritos'});
+    const values = [['start', 'Início'], ['end', 'Fim']];
+    const model = Gtk.StringList.new(values.map(([, label]) => label));
+    const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
+    const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('running-apps-position')));
+    combo.selected = selected();
+    combo.connect('notify::selected', () => settings.set_string('running-apps-position', values[combo.selected]?.[0] ?? 'end'));
+    settings.connect('changed::running-apps-position', () => combo.set_selected(selected()));
+    row.add_suffix(combo);
+    group.add(row);
+}
+
 function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
     const row = new Adw.ActionRow({title: 'Visibilidade do dock', subtitle: 'Como o dock deve permanecer na tela'});
     const values = [
@@ -66,6 +92,8 @@ export default class SheliakPreferences extends ExtensionPreferences {
         addSpin(appearanceGroup, settings, 'icon-size', 'Tamanho dos ícones', 'Tamanho em pixels', 24, 96, 1);
         addSpin(appearanceGroup, settings, 'edge-margin', 'Margem da borda', 'Distância em pixels', 0, 48, 1);
         addSwitch(appearanceGroup, settings, 'animation', 'Animações', 'Animar a entrada e saída do dock');
+        addSwitch(appearanceGroup, settings, 'extend-to-edges', 'Estender até as bordas', 'Ocupar todo o comprimento da borda em vez de se ajustar ao conteúdo');
+        addContentAlignment(appearanceGroup, settings);
         appearance.add(appearanceGroup);
 
         const behavior = new Adw.PreferencesPage({title: 'Comportamento', icon_name: 'preferences-system-symbolic'});
@@ -78,6 +106,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
         const content = new Adw.PreferencesPage({title: 'Conteúdo', icon_name: 'view-grid-symbolic'});
         const contentGroup = new Adw.PreferencesGroup({title: 'Elementos exibidos'});
         addSwitch(contentGroup, settings, 'show-running', 'Aplicativos em execução', 'Mostrar aplicativos que não estão nos favoritos');
+        addRunningAppsPosition(contentGroup, settings);
         addSwitch(contentGroup, settings, 'show-trash', 'Lixeira', 'Mostrar o botão da lixeira');
         addSwitch(contentGroup, settings, 'show-apps-button', 'Mostrar aplicativos', 'Mostrar o botão da grade de aplicativos');
         content.add(contentGroup);

@@ -21,6 +21,8 @@ export class Dock {
     readonly actor: St.BoxLayout;
     private _appsBox: St.BoxLayout;
     private _separator: St.Widget;
+    private _leadingSpacer: St.Widget;
+    private _trailingSpacer: St.Widget;
     private _appSystem = Shell.AppSystem.get_default();
     private _favorites = AppFavorites.getAppFavorites();
     private _icons: AppIcon[] = [];
@@ -42,9 +44,12 @@ export class Dock {
     private _settings: Gio.Settings;
     private _startupCompleteId = 0;
 
-    constructor(settings?: Gio.Settings) {
+    constructor(settings?: Gio.Settings, extensionPath?: string) {
         console.debug('Sheliak: construindo dock');
         this._settings = settings ?? new Gio.Settings({schema_id: SETTINGS_SCHEMA});
+        const logoPath = extensionPath
+            ? GLib.build_filenamev([extensionPath, 'icons', 'sheliak-logo-symbolic.svg'])
+            : null;
         this.actor = new St.BoxLayout({
             name: 'sheliakDock',
             style_class: 'sheliak-dock',
@@ -57,15 +62,20 @@ export class Dock {
             style_class: 'sheliak-apps',
             orientation: Clutter.Orientation.HORIZONTAL,
         });
+
+        this._leadingSpacer = new St.Widget({visible: false});
+        this._trailingSpacer = new St.Widget({visible: false});
+        this.actor.add_child(this._leadingSpacer);
         this.actor.add_child(this._appsBox);
 
         this._separator = new St.Widget({style_class: 'sheliak-separator'});
         this.actor.add_child(this._separator);
 
         this._trash = new TrashIcon();
-        this._showApps = new ShowAppsButton();
+        this._showApps = new ShowAppsButton(logoPath);
         this.actor.add_child(this._trash.actor);
         this.actor.add_child(this._showApps.actor);
+        this.actor.add_child(this._trailingSpacer);
 
         this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
         this._interfaceSettings = new Gio.Settings({
@@ -141,7 +151,8 @@ export class Dock {
                 this._trackWindow(windowActor.meta_window);
         }
         for (const key of ['position', 'icon-size', 'edge-margin', 'animation',
-            'hide-mode', 'hide-delay', 'show-running', 'show-trash',
+            'extend-to-edges', 'content-alignment', 'hide-mode', 'hide-delay',
+            'show-running', 'running-apps-position', 'show-trash',
             'show-apps-button', 'fullscreen-hide']) {
             this._signals.connect(this._settings, `changed::${key}`,
                 () => {
@@ -198,7 +209,11 @@ export class Dock {
             ? this._appSystem.get_running().filter(app => !favoriteIds.has(app.get_id()))
             : [];
 
-        for (const app of [...favorites, ...running]) {
+        const apps = this._settings.get_string('running-apps-position') === 'start'
+            ? [...running, ...favorites]
+            : [...favorites, ...running];
+
+        for (const app of apps) {
             const icon = new AppIcon(
                 app, this._menuManager, favoriteIds.has(app.get_id()),
                 open => this._onMenuStateChanged(open),
@@ -295,6 +310,15 @@ export class Dock {
         });
     }
 
+    private _alignedOffset(monitorStart: number, monitorSize: number, size: number, margin: number): number {
+        const alignment = this._settings.get_string('content-alignment');
+        if (alignment === 'start')
+            return monitorStart + margin;
+        if (alignment === 'end')
+            return monitorStart + monitorSize - margin - size;
+        return monitorStart + Math.floor((monitorSize - size) / 2);
+    }
+
     private _shownGeometry(): [number, number, number, number] {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
@@ -302,25 +326,26 @@ export class Dock {
 
         const position = this._settings.get_string('position');
         const margin = this._settings.get_uint('edge-margin');
+        const extend = this._settings.get_boolean('extend-to-edges');
         const horizontal = position === 'top' || position === 'bottom';
         const [naturalWidth, naturalHeight] = this._naturalDockSize(horizontal);
         const width = horizontal
-            ? Math.min(naturalWidth, Math.max(1, monitor.width - margin * 2))
+            ? (extend ? Math.max(1, monitor.width - margin * 2) : Math.min(naturalWidth, Math.max(1, monitor.width - margin * 2)))
             : naturalWidth;
         const height = horizontal
             ? naturalHeight
-            : Math.min(naturalHeight, Math.max(1, monitor.height - margin * 2));
+            : (extend ? Math.max(1, monitor.height - margin * 2) : Math.min(naturalHeight, Math.max(1, monitor.height - margin * 2)));
 
-        let x = monitor.x + Math.floor((monitor.width - width) / 2);
+        let x = this._alignedOffset(monitor.x, monitor.width, width, margin);
         let y = monitor.y + monitor.height - margin - height;
         if (position === 'top') {
             y = monitor.y + margin;
         } else if (position === 'left') {
             x = monitor.x + margin;
-            y = monitor.y + Math.floor((monitor.height - height) / 2);
+            y = this._alignedOffset(monitor.y, monitor.height, height, margin);
         } else if (position === 'right') {
             x = monitor.x + monitor.width - margin - width;
-            y = monitor.y + Math.floor((monitor.height - height) / 2);
+            y = this._alignedOffset(monitor.y, monitor.height, height, margin);
         }
 
         return [x, y, width, height];
@@ -361,6 +386,8 @@ export class Dock {
 
         const position = this._settings.get_string('position');
         const margin = this._settings.get_uint('edge-margin');
+        const extend = this._settings.get_boolean('extend-to-edges');
+        const alignment = this._settings.get_string('content-alignment');
         const horizontal = position === 'top' || position === 'bottom';
         const orientation = horizontal
             ? Clutter.Orientation.HORIZONTAL
@@ -374,9 +401,20 @@ export class Dock {
             this.actor.add_style_class_name('horizontal');
             this.actor.remove_style_class_name('vertical');
         }
+        if (extend && margin === 0)
+            this.actor.add_style_class_name('squared');
+        else
+            this.actor.remove_style_class_name('squared');
         this._trash.actor.visible = this._settings.get_boolean('show-trash');
         this._showApps.actor.visible = this._settings.get_boolean('show-apps-button');
         this._separator.visible = this._trash.actor.visible || this._showApps.actor.visible;
+
+        this._leadingSpacer.visible = extend;
+        this._trailingSpacer.visible = extend;
+        this._leadingSpacer.x_expand = extend && horizontal && alignment !== 'start';
+        this._leadingSpacer.y_expand = extend && !horizontal && alignment !== 'start';
+        this._trailingSpacer.x_expand = extend && horizontal && alignment !== 'end';
+        this._trailingSpacer.y_expand = extend && !horizontal && alignment !== 'end';
 
         const [shownX, shownY, width, height] = this._shownGeometry();
         this.actor.set_size(width, height);

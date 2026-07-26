@@ -40,6 +40,7 @@ await Promise.all([
     mkdir(new URL('schemas/', outdir), {recursive: true}),
     cp(new URL('../schemas/org.gnome.shell.extensions.sheliak.gschema.xml', import.meta.url),
         new URL('schemas/org.gnome.shell.extensions.sheliak.gschema.xml', outdir)),
+    cp(new URL('../icons/', import.meta.url), new URL('icons/', outdir), {recursive: true}),
 ]);
 
 await execFileAsync('glib-compile-schemas', [new URL('schemas/', outdir).pathname]);
