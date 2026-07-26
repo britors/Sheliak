@@ -59,6 +59,21 @@
   border-bottom-color: rgba(205, 214, 224, 0.58);
 }
 
+.sheliak-app-badge {
+  background-color: rgba(37, 99, 235, 0.92);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 14px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.sheliak-dock.lyra-theme .sheliak-app-badge {
+  background-color: #3b76f0;
+}
+
 .sheliak-separator {
   width: 1px;
   margin: 5px 3px;

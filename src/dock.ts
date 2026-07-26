@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {AppIcon} from './appIcon.js';
+import {LauncherEntryTracker} from './launcherEntries.js';
 import {ShowAppsButton} from './showAppsButton.js';
 import {SignalTracker} from './signals.js';
 import {TrashIcon} from './trashIcon.js';
@@ -30,6 +31,7 @@ export class Dock {
     private _signals = new SignalTracker();
     private _trash: TrashIcon;
     private _showApps: ShowAppsButton;
+    private _launcherEntries: LauncherEntryTracker;
     private _interfaceSettings: Gio.Settings;
     private _userThemeSettings: Gio.Settings | null = null;
     private _revealTrigger: St.Widget;
@@ -78,6 +80,8 @@ export class Dock {
         this.actor.add_child(this._trailingSpacer);
 
         this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
+        this._launcherEntries = new LauncherEntryTracker(
+            (desktopId, count) => this._onLauncherEntryChanged(desktopId, count));
         this._interfaceSettings = new Gio.Settings({
             schema_id: 'org.gnome.desktop.interface',
         });
@@ -189,6 +193,7 @@ export class Dock {
             this._startupCompleteId = 0;
         }
         this._signals.destroy();
+        this._launcherEntries.destroy();
         for (const icon of this._icons.splice(0))
             icon.destroy();
         this._trash.destroy();
@@ -218,6 +223,7 @@ export class Dock {
                 app, this._menuManager, favoriteIds.has(app.get_id()),
                 open => this._onMenuStateChanged(open),
                 this._settings.get_uint('icon-size'));
+            icon.setBadge(this._launcherEntries.countFor(icon.appId));
             this._icons.push(icon);
             this._appsBox.add_child(icon.actor);
         }
@@ -234,6 +240,14 @@ export class Dock {
             this._redisplay();
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    private _onLauncherEntryChanged(desktopId: string, count: number): void {
+        console.log(`Sheliak TESTE: launcher entry recebida id=${desktopId} count=${count}`);
+        for (const icon of this._icons) {
+            if (icon.appId === desktopId)
+                icon.setBadge(count);
+        }
     }
 
     private _onMenuStateChanged(open: boolean): void {

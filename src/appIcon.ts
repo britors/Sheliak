@@ -20,8 +20,10 @@ function toggleStyle(actor: St.Widget, name: string, enabled: boolean): void {
 export class AppIcon {
     readonly actor: St.Button;
     readonly menu: AppContextMenu;
+    readonly appId: string;
     private _app: Shell.App;
     private _signals = new SignalTracker();
+    private _badge: St.Label;
 
     constructor(
         app: Shell.App,
@@ -31,6 +33,7 @@ export class AppIcon {
         iconSize = DEFAULT_ICON_SIZE,
     ) {
         this._app = app;
+        this.appId = app.get_id();
         this.actor = new St.Button({
             style_class: 'sheliak-app-button',
             reactive: true,
@@ -38,7 +41,18 @@ export class AppIcon {
             track_hover: true,
             accessible_name: app.get_name(),
         });
-        this.actor.set_child(app.create_icon_texture(iconSize));
+
+        const iconContainer = new St.Widget({layout_manager: new Clutter.BinLayout()});
+        iconContainer.add_child(app.create_icon_texture(iconSize));
+        this._badge = new St.Label({
+            style_class: 'sheliak-app-badge',
+            text: '',
+            visible: false,
+            x_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.START,
+        });
+        iconContainer.add_child(this._badge);
+        this.actor.set_child(iconContainer);
 
         this.menu = new AppContextMenu(this.actor, app);
         menuManager.addMenu(this.menu.menu);
@@ -69,6 +83,11 @@ export class AppIcon {
         toggleStyle(this.actor, 'running', running);
         toggleStyle(this.actor, 'favorite', favorite);
         toggleStyle(this.actor, 'running-only', running && !favorite);
+    }
+
+    setBadge(count: number): void {
+        this._badge.visible = count > 0;
+        this._badge.text = count > 99 ? '99+' : String(count);
     }
 
     activate(): void {
