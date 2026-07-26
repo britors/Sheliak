@@ -38,21 +38,24 @@ export class Dock {
     private _hideTimeoutId = 0;
     private _redisplayTimeoutId = 0;
     private _laidOutOnce = false;
+    private _chromeAdded = false;
     private _settings: Gio.Settings;
+    private _startupCompleteId = 0;
 
     constructor(settings?: Gio.Settings) {
+        console.debug('Sheliak: construindo dock');
         this._settings = settings ?? new Gio.Settings({schema_id: SETTINGS_SCHEMA});
         this.actor = new St.BoxLayout({
             name: 'sheliakDock',
             style_class: 'sheliak-dock',
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
             reactive: true,
             can_focus: false,
             x_align: Clutter.ActorAlign.CENTER,
         });
         this._appsBox = new St.BoxLayout({
             style_class: 'sheliak-apps',
-            vertical: false,
+            orientation: Clutter.Orientation.HORIZONTAL,
         });
         this.actor.add_child(this._appsBox);
 
@@ -108,8 +111,22 @@ export class Dock {
         this._signals.connect(this._favorites, 'changed', () => this._redisplay());
         this._signals.connect(this._appSystem, 'app-state-changed',
             () => this._queueRedisplay());
+        this._signals.connect(this._appSystem, 'installed-changed', () => {
+            console.debug('Sheliak: lista de apps instalados atualizada');
+            this._favorites.reload();
+            this._queueRedisplay();
+        });
         this._signals.connect(Main.layoutManager, 'monitors-changed',
             () => this._relayout());
+        if (Main.layoutManager._startingUp) {
+            this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
+                console.debug('Sheliak: startup-complete, atualizando lançadores');
+                Main.layoutManager.disconnect(this._startupCompleteId);
+                this._startupCompleteId = 0;
+                this._favorites.reload();
+                this._redisplay();
+            });
+        }
         this._signals.connect(global.display, 'restacked',
             () => this._syncVisibility());
         this._signals.connect(global.display, 'window-created',
@@ -127,7 +144,10 @@ export class Dock {
             'hide-mode', 'hide-delay', 'show-running', 'show-trash',
             'show-apps-button', 'fullscreen-hide']) {
             this._signals.connect(this._settings, `changed::${key}`,
-                () => this._applySettings());
+                () => {
+                    console.debug(`Sheliak: configuração alterada: ${key}`);
+                    this._applySettings();
+                });
         }
         this._signals.connect(this._interfaceSettings, 'changed::gtk-theme',
             () => this._syncTheme());
@@ -140,9 +160,11 @@ export class Dock {
         this._applySettings();
         this._syncTheme();
         this._syncVisibility();
+        console.debug('Sheliak: dock construído e sinais conectados');
     }
 
     destroy(): void {
+        console.debug('Sheliak: destruindo dock');
         if (this._hideTimeoutId) {
             GLib.source_remove(this._hideTimeoutId);
             this._hideTimeoutId = 0;
@@ -150,6 +172,10 @@ export class Dock {
         if (this._redisplayTimeoutId) {
             GLib.source_remove(this._redisplayTimeoutId);
             this._redisplayTimeoutId = 0;
+        }
+        if (this._startupCompleteId) {
+            Main.layoutManager.disconnect(this._startupCompleteId);
+            this._startupCompleteId = 0;
         }
         this._signals.destroy();
         for (const icon of this._icons.splice(0))
@@ -180,6 +206,7 @@ export class Dock {
             this._icons.push(icon);
             this._appsBox.add_child(icon.actor);
         }
+        console.debug(`Sheliak: redisplay concluído (${favorites.length} favoritos, ${running.length} em execução)`);
 
         this._relayout();
     }
@@ -322,6 +349,7 @@ export class Dock {
     private _setHidden(hidden: boolean): void {
         if (this._hidden === hidden)
             return;
+        console.debug(`Sheliak: dock ${hidden ? 'ocultado' : 'exibido'}`);
         this._hidden = hidden;
         this._relayout();
     }
@@ -334,8 +362,11 @@ export class Dock {
         const position = this._settings.get_string('position');
         const margin = this._settings.get_uint('edge-margin');
         const horizontal = position === 'top' || position === 'bottom';
-        this.actor.vertical = !horizontal;
-        this._appsBox.vertical = !horizontal;
+        const orientation = horizontal
+            ? Clutter.Orientation.HORIZONTAL
+            : Clutter.Orientation.VERTICAL;
+        this.actor.orientation = orientation;
+        this._appsBox.orientation = orientation;
         if (!horizontal) {
             this.actor.add_style_class_name('vertical');
             this.actor.remove_style_class_name('horizontal');
@@ -397,8 +428,10 @@ export class Dock {
     }
 
     private _syncChrome(): void {
-        Main.layoutManager.removeChrome(this.actor);
-        Main.layoutManager.removeChrome(this._revealTrigger);
+        if (this._chromeAdded) {
+            Main.layoutManager.removeChrome(this.actor);
+            Main.layoutManager.removeChrome(this._revealTrigger);
+        }
         const trackFullscreen = this._settings.get_boolean('fullscreen-hide');
         Main.layoutManager.addChrome(this.actor, {
             affectsInputRegion: true,
@@ -410,12 +443,14 @@ export class Dock {
             affectsStruts: false,
             trackFullscreen,
         });
+        this._chromeAdded = true;
     }
 
     private _syncTheme(): void {
         const gtkTheme = this._interfaceSettings.get_string('gtk-theme');
         const shellTheme = this._userThemeSettings?.get_string('name') ?? '';
         const isLyra = /lyra/i.test(`${gtkTheme} ${shellTheme}`);
+        console.debug(`Sheliak: sincronização de tema (gtk=${gtkTheme}, shell=${shellTheme}, lyra=${isLyra})`);
         if (isLyra)
             this.actor.add_style_class_name('lyra-theme');
         else

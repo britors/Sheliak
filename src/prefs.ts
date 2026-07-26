@@ -58,6 +58,7 @@ function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
 
 export default class SheliakPreferences extends ExtensionPreferences {
     async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
+        console.debug('Sheliak: abrindo janela de preferências');
         const settings = this.getSettings(SCHEMA);
         const appearance = new Adw.PreferencesPage({title: 'Aparência', icon_name: 'preferences-desktop-theme-symbolic'});
         const appearanceGroup = new Adw.PreferencesGroup({title: 'Aparência'});

@@ -72,15 +72,28 @@ export class TrashIcon {
 
                 try {
                     const enumerator = file!.enumerate_children_finish(result);
-                    const info = enumerator.next_file(null);
-                    enumerator.close(null);
-                    this._icon.icon_name = info
-                        ? 'user-trash-full-symbolic'
-                        : 'user-trash-symbolic';
-                    if (info)
-                        this.actor.add_style_class_name('full');
-                    else
-                        this.actor.remove_style_class_name('full');
+                    enumerator.next_files_async(
+                        1, GLib.PRIORITY_DEFAULT, null,
+                        (enumerator2, result2) => {
+                            if (this._destroyed)
+                                return;
+
+                            try {
+                                const infos = enumerator2!.next_files_finish(result2);
+                                enumerator2!.close(null);
+                                const hasItems = infos.length > 0;
+                                this._icon.icon_name = hasItems
+                                    ? 'user-trash-full-symbolic'
+                                    : 'user-trash-symbolic';
+                                if (hasItems)
+                                    this.actor.add_style_class_name('full');
+                                else
+                                    this.actor.remove_style_class_name('full');
+                            } catch (error) {
+                                console.warn(`Sheliak: não foi possível consultar a lixeira: ${error}`);
+                            }
+                        },
+                    );
                 } catch (error) {
                     console.warn(`Sheliak: não foi possível consultar a lixeira: ${error}`);
                 }
