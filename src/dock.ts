@@ -243,7 +243,6 @@ export class Dock {
     }
 
     private _onLauncherEntryChanged(desktopId: string, count: number): void {
-        console.log(`Sheliak TESTE: launcher entry recebida id=${desktopId} count=${count}`);
         for (const icon of this._icons) {
             if (icon.appId === desktopId)
                 icon.setBadge(count);
