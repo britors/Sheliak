@@ -1,6 +1,8 @@
 /*
  * The neutral rules inherit the active Shell theme. Lyra tokens are scoped to
  * .lyra-theme so installing Sheliak never imposes the Lyra palette on others.
+ * .light-theme tracks org.gnome.desktop.interface color-scheme independently
+ * of .lyra-theme, so the dock follows the system light/dark preference.
  */
 .sheliak-dock {
   spacing: 6px;
@@ -22,6 +24,12 @@
   border-color: rgba(205, 214, 224, 0.18);
 }
 
+.sheliak-dock.light-theme {
+  background-color: rgba(246, 247, 249, 0.82);
+  border-color: rgba(0, 0, 0, 0.10);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
 .sheliak-apps {
   spacing: 4px;
 }
@@ -40,9 +48,21 @@
   background-color: rgba(255, 255, 255, 0.14);
 }
 
+.sheliak-dock.light-theme .sheliak-app-button:hover,
+.sheliak-dock.light-theme .sheliak-app-button:focus,
+.sheliak-dock.light-theme .sheliak-system-button:hover,
+.sheliak-dock.light-theme .sheliak-system-button:focus {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
 .sheliak-app-button:active,
 .sheliak-system-button:active {
   background-color: rgba(255, 255, 255, 0.22);
+}
+
+.sheliak-dock.light-theme .sheliak-app-button:active,
+.sheliak-dock.light-theme .sheliak-system-button:active {
+  background-color: rgba(0, 0, 0, 0.14);
 }
 
 .sheliak-app-button.running {
@@ -55,8 +75,16 @@
   border-bottom-color: #cdd6e0;
 }
 
+.sheliak-dock.light-theme .sheliak-app-button.running {
+  border-bottom-color: rgba(32, 36, 43, 0.85);
+}
+
 .sheliak-app-button.running-only {
   border-bottom-color: rgba(205, 214, 224, 0.58);
+}
+
+.sheliak-dock.light-theme .sheliak-app-button.running-only {
+  border-bottom-color: rgba(32, 36, 43, 0.45);
 }
 
 .sheliak-app-badge {
@@ -80,6 +108,10 @@
   background-color: rgba(255, 255, 255, 0.16);
 }
 
+.sheliak-dock.light-theme .sheliak-separator {
+  background-color: rgba(0, 0, 0, 0.14);
+}
+
 .sheliak-menu {
   min-width: 220px;
 }
@@ -91,4 +123,8 @@
 .sheliak-drag-placeholder {
   border-radius: 12px;
   background-color: rgba(255, 255, 255, 0.18);
+}
+
+.sheliak-dock.light-theme .sheliak-drag-placeholder {
+  background-color: rgba(0, 0, 0, 0.12);
 }

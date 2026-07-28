@@ -170,6 +170,8 @@ export class Dock {
         }
         this._signals.connect(this._interfaceSettings, 'changed::gtk-theme',
             () => this._syncTheme());
+        this._signals.connect(this._interfaceSettings, 'changed::color-scheme',
+            () => this._syncTheme());
         if (this._userThemeSettings) {
             this._signals.connect(this._userThemeSettings, 'changed::name',
                 () => this._syncTheme());
@@ -603,10 +605,17 @@ export class Dock {
         const gtkTheme = this._interfaceSettings.get_string('gtk-theme');
         const shellTheme = this._userThemeSettings?.get_string('name') ?? '';
         const isLyra = /lyra/i.test(`${gtkTheme} ${shellTheme}`);
-        console.debug(`Sheliak: sincronização de tema (gtk=${gtkTheme}, shell=${shellTheme}, lyra=${isLyra})`);
+        const colorScheme = this._interfaceSettings.get_string('color-scheme');
+        const isLight = colorScheme !== 'prefer-dark';
+        console.debug(`Sheliak: sincronização de tema (gtk=${gtkTheme}, shell=${shellTheme}, ` +
+            `lyra=${isLyra}, color-scheme=${colorScheme}, light=${isLight})`);
         if (isLyra)
             this.actor.add_style_class_name('lyra-theme');
         else
             this.actor.remove_style_class_name('lyra-theme');
+        if (isLight)
+            this.actor.add_style_class_name('light-theme');
+        else
+            this.actor.remove_style_class_name('light-theme');
     }
 }
