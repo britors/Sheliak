@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
@@ -21,7 +22,8 @@ export class AppIcon {
     readonly actor: St.Button;
     readonly menu: AppContextMenu;
     readonly appId: string;
-    private _app: Shell.App;
+    readonly app: Shell.App;
+    readonly favorite: boolean;
     private _signals = new SignalTracker();
     private _badge: St.Label;
 
@@ -31,8 +33,10 @@ export class AppIcon {
         favorite: boolean,
         onMenuStateChanged?: (open: boolean) => void,
         iconSize = DEFAULT_ICON_SIZE,
+        onDragEnd?: () => void,
     ) {
-        this._app = app;
+        this.app = app;
+        this.favorite = favorite;
         this.appId = app.get_id();
         this.actor = new St.Button({
             style_class: 'sheliak-app-button',
@@ -75,11 +79,23 @@ export class AppIcon {
                 return Clutter.EVENT_PROPAGATE;
             });
 
+        if (favorite) {
+            (this.actor as unknown as {_delegate?: unknown})._delegate = this;
+            const draggable = DND.makeDraggable(this.actor, {timeoutThreshold: 200});
+            this._signals.connect(draggable, 'drag-begin', () => {
+                this.actor.add_style_class_name('dragging');
+            });
+            this._signals.connect(draggable, 'drag-end', () => {
+                this.actor.remove_style_class_name('dragging');
+                onDragEnd?.();
+            });
+        }
+
         this.setState(favorite);
     }
 
     setState(favorite: boolean): void {
-        const running = this._app.get_state() !== Shell.AppState.STOPPED;
+        const running = this.app.get_state() !== Shell.AppState.STOPPED;
         toggleStyle(this.actor, 'running', running);
         toggleStyle(this.actor, 'favorite', favorite);
         toggleStyle(this.actor, 'running-only', running && !favorite);
@@ -92,11 +108,11 @@ export class AppIcon {
 
     activate(): void {
         this.menu.close();
-        const windows = this._app.get_windows()
+        const windows = this.app.get_windows()
             .filter(window => !window.skip_taskbar);
 
         if (windows.length === 0) {
-            this._app.activate();
+            this.app.activate();
             return;
         }
 

@@ -6,6 +6,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
@@ -45,6 +46,8 @@ export class Dock {
     private _chromeAdded = false;
     private _settings: Gio.Settings;
     private _startupCompleteId = 0;
+    private _dragPlaceholder: St.Widget | null = null;
+    private _dragPlaceholderPos = -1;
 
     constructor(settings?: Gio.Settings, extensionPath?: string) {
         console.debug('Sheliak: construindo dock');
@@ -64,6 +67,7 @@ export class Dock {
             style_class: 'sheliak-apps',
             orientation: Clutter.Orientation.HORIZONTAL,
         });
+        (this._appsBox as unknown as {_delegate?: unknown})._delegate = this;
 
         this._leadingSpacer = new St.Widget({visible: false});
         this._trailingSpacer = new St.Widget({visible: false});
@@ -194,6 +198,7 @@ export class Dock {
         }
         this._signals.destroy();
         this._launcherEntries.destroy();
+        this._clearDragPlaceholder();
         for (const icon of this._icons.splice(0))
             icon.destroy();
         this._trash.destroy();
@@ -222,7 +227,8 @@ export class Dock {
             const icon = new AppIcon(
                 app, this._menuManager, favoriteIds.has(app.get_id()),
                 open => this._onMenuStateChanged(open),
-                this._settings.get_uint('icon-size'));
+                this._settings.get_uint('icon-size'),
+                () => this._clearDragPlaceholder());
             icon.setBadge(this._launcherEntries.countFor(icon.appId));
             this._icons.push(icon);
             this._appsBox.add_child(icon.actor);
@@ -252,6 +258,102 @@ export class Dock {
     private _onMenuStateChanged(open: boolean): void {
         this._openMenuCount += open ? 1 : -1;
         this._syncVisibility();
+    }
+
+    private _favoritesBounds(): {start: number; count: number} {
+        let start = -1;
+        let count = 0;
+        for (let i = 0; i < this._icons.length; i++) {
+            if (this._icons[i].favorite) {
+                if (start === -1)
+                    start = i;
+                count++;
+            }
+        }
+        return {start: start === -1 ? 0 : start, count};
+    }
+
+    private _clearDragPlaceholder(): void {
+        if (!this._dragPlaceholder)
+            return;
+        this._dragPlaceholder.destroy();
+        this._dragPlaceholder = null;
+        this._dragPlaceholderPos = -1;
+        this._relayout();
+    }
+
+    // DND drop-target interface, invoked by GNOME Shell's dnd.js on the
+    // _appsBox delegate while an AppIcon is being dragged over the dock.
+    handleDragOver(source: unknown, _actor: Clutter.Actor, x: number, y: number, _time: number): DND.DragMotionResult {
+        const app = (source as {app?: Shell.App} | null)?.app;
+        if (!app || !this._favorites.isFavorite(app.get_id()))
+            return DND.DragMotionResult.NO_DROP;
+
+        const {start, count} = this._favoritesBounds();
+        if (count === 0)
+            return DND.DragMotionResult.NO_DROP;
+
+        const horizontal = this._appsBox.orientation === Clutter.Orientation.HORIZONTAL;
+        const coord = horizontal ? x : y;
+
+        let numChildren = this._appsBox.get_n_children();
+        let boxSize = horizontal ? this._appsBox.width : this._appsBox.height;
+        if (this._dragPlaceholder) {
+            boxSize -= horizontal ? this._dragPlaceholder.width : this._dragPlaceholder.height;
+            numChildren--;
+        }
+
+        const rawIndex = boxSize > 0
+            ? Math.floor(Math.clamp(coord * numChildren / boxSize, 0, numChildren))
+            : 0;
+        const pos = Math.clamp(rawIndex - start, 0, count);
+
+        if (pos !== this._dragPlaceholderPos) {
+            this._dragPlaceholderPos = pos;
+
+            const favorites = this._favorites.getFavorites();
+            const favPos = favorites.findIndex(favorite => favorite.get_id() === app.get_id());
+            if (favPos !== -1 && (pos === favPos || pos === favPos + 1)) {
+                this._clearDragPlaceholder();
+                return DND.DragMotionResult.CONTINUE;
+            }
+
+            this._dragPlaceholder?.destroy();
+            const iconSize = this._settings.get_uint('icon-size');
+            this._dragPlaceholder = new St.Widget({
+                style_class: 'sheliak-drag-placeholder',
+                width: horizontal ? iconSize : 1,
+                height: horizontal ? 1 : iconSize,
+            });
+            this._appsBox.insert_child_at_index(this._dragPlaceholder, start + pos);
+            this._relayout();
+        }
+
+        return this._dragPlaceholder ? DND.DragMotionResult.MOVE_DROP : DND.DragMotionResult.NO_DROP;
+    }
+
+    // DND drop-target interface: commits the reorder chosen during handleDragOver.
+    acceptDrop(source: unknown): boolean {
+        const app = (source as {app?: Shell.App} | null)?.app;
+        if (!app || !this._favorites.isFavorite(app.get_id()))
+            return false;
+
+        if (!this._dragPlaceholder) {
+            this._dragPlaceholderPos = -1;
+            return true;
+        }
+
+        const id = app.get_id();
+        const pos = this._dragPlaceholderPos;
+        this._clearDragPlaceholder();
+
+        const laters = global.compositor.get_laters();
+        laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+            this._favorites.moveFavoriteToPos(id, pos);
+            return GLib.SOURCE_REMOVE;
+        });
+
+        return true;
     }
 
     private _syncVisibility(): void {

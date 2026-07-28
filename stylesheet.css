@@ -83,3 +83,12 @@
 .sheliak-menu {
   min-width: 220px;
 }
+
+.sheliak-app-button.dragging {
+  opacity: 0.4;
+}
+
+.sheliak-drag-placeholder {
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.18);
+}
