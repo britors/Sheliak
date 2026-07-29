@@ -5,23 +5,34 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export class ShowAppsButton {
     readonly actor: St.Button;
+    private readonly _icon: St.Icon;
+    // St.Icon's `gicon` type comes from a separately-versioned nested
+    // @girs/gio-2.0 package (pulled in via St -> Meta), which is
+    // structurally incompatible with the top-level Gio.Icon type here.
+    private readonly _darkIcon: never | null;
+    private readonly _lightIcon: never | null;
 
-    constructor(iconPath: string | null) {
-        // St.Icon's `gicon` type comes from a separately-versioned nested
-        // @girs/gio-2.0 package (pulled in via St -> Meta), which is
-        // structurally incompatible with the top-level Gio.Icon type here.
-        const icon = iconPath
-            ? new St.Icon({gicon: Gio.icon_new_for_string(iconPath) as never, icon_size: 32})
+    constructor(iconPath: string | null, lightIconPath: string | null) {
+        this._darkIcon = iconPath ? Gio.icon_new_for_string(iconPath) as never : null;
+        this._lightIcon = lightIconPath ? Gio.icon_new_for_string(lightIconPath) as never : null;
+        this._icon = this._darkIcon
+            ? new St.Icon({gicon: this._darkIcon, icon_size: 32})
             : new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 32});
         this.actor = new St.Button({
             style_class: 'sheliak-system-button sheliak-show-apps-button',
-            child: icon,
+            child: this._icon,
             reactive: true,
             can_focus: true,
             track_hover: true,
             accessible_name: 'Mostrar aplicativos',
         });
         this.actor.connect('clicked', () => Main.overview.showApps());
+    }
+
+    setLightTheme(isLight: boolean): void {
+        const gicon = isLight ? this._lightIcon : this._darkIcon;
+        if (gicon)
+            this._icon.set_gicon(gicon);
     }
 
     destroy(): void {

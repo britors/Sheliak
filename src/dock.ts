@@ -55,6 +55,9 @@ export class Dock {
         const logoPath = extensionPath
             ? GLib.build_filenamev([extensionPath, 'icons', 'sheliak-logo-symbolic.svg'])
             : null;
+        const logoPathLight = extensionPath
+            ? GLib.build_filenamev([extensionPath, 'icons', 'sheliak-logo-symbolic-dark.svg'])
+            : null;
         this.actor = new St.BoxLayout({
             name: 'sheliakDock',
             style_class: 'sheliak-dock',
@@ -78,7 +81,7 @@ export class Dock {
         this.actor.add_child(this._separator);
 
         this._trash = new TrashIcon();
-        this._showApps = new ShowAppsButton(logoPath);
+        this._showApps = new ShowAppsButton(logoPath, logoPathLight);
         this.actor.add_child(this._trash.actor);
         this.actor.add_child(this._showApps.actor);
         this.actor.add_child(this._trailingSpacer);
@@ -617,5 +620,6 @@ export class Dock {
             this.actor.add_style_class_name('light-theme');
         else
             this.actor.remove_style_class_name('light-theme');
+        this._showApps.setLightTheme(isLight);
     }
 }
