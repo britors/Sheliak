@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -91,6 +92,16 @@ export class AppIcon {
             });
         }
 
+        // Mutter uses this geometry as the destination of minimize effects.
+        // Keeping it on the application icon also lets deform effects such as
+        // Magic Lamp pull the window into the corresponding Sheliak item.
+        this._signals.connect(this.actor, 'notify::allocation',
+            () => this.updateIconGeometry());
+        this._signals.connect(this.actor, 'notify::mapped',
+            () => this.updateIconGeometry());
+        this._signals.connect(this.app, 'windows-changed',
+            () => this.updateIconGeometry());
+
         this.setState(favorite);
     }
 
@@ -104,6 +115,27 @@ export class AppIcon {
     setBadge(count: number): void {
         this._badge.visible = count > 0;
         this._badge.text = count > 99 ? '99+' : String(count);
+    }
+
+    updateIconGeometry(): void {
+        // Actors not attached to a stage can report invalid transformed
+        // coordinates while the dock is being rebuilt.
+        if (!this.actor.get_stage())
+            return;
+
+        const [x, y] = this.actor.get_transformed_position();
+        const [width, height] = this.actor.get_transformed_size();
+        if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0)
+            return;
+
+        const rect = new Mtk.Rectangle({
+            x: Math.round(x),
+            y: Math.round(y),
+            width: Math.max(1, Math.round(width)),
+            height: Math.max(1, Math.round(height)),
+        });
+        for (const window of this.app.get_windows())
+            window.set_icon_geometry(rect);
     }
 
     activate(): void {

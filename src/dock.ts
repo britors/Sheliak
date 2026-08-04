@@ -128,6 +128,14 @@ export class Dock {
             this._syncVisibility();
             return Clutter.EVENT_PROPAGATE;
         });
+        // Moving the dock does not reallocate its children, so refresh the
+        // minimize target while the dock itself slides in or out.
+        this._signals.connect(this.actor, 'notify::x',
+            () => this._updateIconGeometries());
+        this._signals.connect(this.actor, 'notify::y',
+            () => this._updateIconGeometries());
+        this._signals.connect(this.actor, 'notify::allocation',
+            () => this._updateIconGeometries());
 
         this._signals.connect(this._favorites, 'changed', () => this._redisplay());
         this._signals.connect(this._appSystem, 'app-state-changed',
@@ -258,6 +266,11 @@ export class Dock {
             if (icon.appId === desktopId)
                 icon.setBadge(count);
         }
+    }
+
+    private _updateIconGeometries(): void {
+        for (const icon of this._icons)
+            icon.updateIconGeometry();
     }
 
     private _onMenuStateChanged(open: boolean): void {
