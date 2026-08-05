@@ -161,6 +161,10 @@ export default class SheliakPreferences extends ExtensionPreferences {
             'Mostrar aplicativos instalados, organizados por categoria');
         addSwitch(panelGroup, settings, 'show-places-menu', 'Menu Locais',
             'Mostrar pastas pessoais, marcadores e dispositivos');
+        addSwitch(panelGroup, settings, 'show-system-menu', 'Menu Sistema',
+            'Mostrar atalhos para as configurações do Vega e a tela Sobre');
+        addSwitch(panelGroup, settings, 'show-search-menu', 'Menu Busca',
+            'Mostrar o ícone de busca de aplicativos e configurações');
         addSwitch(panelGroup, settings, 'hide-workspace-button',
             'Ocultar botão de áreas de trabalho',
             'Remover o botão nativo de áreas de trabalho da barra superior');
@@ -178,26 +182,16 @@ export default class SheliakPreferences extends ExtensionPreferences {
             'Marcadores em Locais', 'Incluir os marcadores configurados no gerenciador de arquivos');
         addSwitch(panelContentGroup, settings, 'show-place-volumes',
             'Dispositivos em Locais', 'Incluir volumes e locais remotos montados');
+        addSwitch(panelContentGroup, settings, 'show-system-about',
+            'Item Sobre em Sistema', 'Mostrar o atalho para as informações do sistema instalado');
         panel.add(panelContentGroup);
 
-        const about = new Adw.PreferencesPage({title: 'Sobre', icon_name: 'help-about-symbolic'});
+        const about = new Adw.PreferencesPage({
+            name: 'about', title: 'Sobre', icon_name: 'help-about-symbolic',
+        });
         const aboutGroup = new Adw.PreferencesGroup({title: 'Sheliak'});
         const aboutRow = new Adw.ActionRow({title: 'Sobre o Sheliak', subtitle: 'Website, reportar erro, créditos e informações legais', activatable: true});
-        aboutRow.connect('activated', () => {
-            const dialog = new Adw.AboutDialog({
-                application_name: 'Sheliak',
-                application_icon: 'folder-download-symbolic',
-                developer_name: 'Lyra OS',
-                version: '1.4.0',
-                website: 'https://github.com/britors/Sheliak',
-                issue_url: 'https://github.com/britors/Sheliak/issues',
-                license_type: Gtk.License.GPL_3_0,
-                comments: 'Dock nativo do Lyra OS para o GNOME Shell.',
-                copyright: '© 2026 Lyra OS',
-            });
-            dialog.set_developers(['Rodrigo Brito']);
-            dialog.present(window);
-        });
+        aboutRow.connect('activated', () => showAboutDialog(window));
         aboutGroup.add(aboutRow);
         about.add(aboutGroup);
 
@@ -207,4 +201,20 @@ export default class SheliakPreferences extends ExtensionPreferences {
         window.add(panel);
         window.add(about);
     }
+}
+
+function showAboutDialog(window: Adw.PreferencesWindow): void {
+    const dialog = new Adw.AboutDialog({
+        application_name: 'Sheliak',
+        application_icon: 'folder-download-symbolic',
+        developer_name: 'Lyra OS',
+        version: '1.4.2',
+        website: 'https://github.com/britors/Sheliak',
+        issue_url: 'https://github.com/britors/Sheliak/issues',
+        license_type: Gtk.License.GPL_3_0,
+        comments: 'Dock nativo do Lyra OS para o GNOME Shell.',
+        copyright: '© 2026 Lyra OS',
+    });
+    dialog.set_developers(['Rodrigo Brito']);
+    dialog.present(window);
 }

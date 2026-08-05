@@ -18,6 +18,9 @@
     <key name="fullscreen-hide" type="b"><default>true</default><summary>Hide in fullscreen</summary></key>
     <key name="show-applications-menu" type="b"><default>true</default><summary>Show the applications menu in the top panel</summary></key>
     <key name="show-places-menu" type="b"><default>true</default><summary>Show the places menu in the top panel</summary></key>
+    <key name="show-system-menu" type="b"><default>true</default><summary>Show the system menu in the top panel</summary></key>
+    <key name="show-system-about" type="b"><default>true</default><summary>Show the About item in the system menu</summary></key>
+    <key name="show-search-menu" type="b"><default>true</default><summary>Show the search menu in the top panel</summary></key>
     <key name="hide-workspace-button" type="b"><default>true</default><summary>Hide the workspace button in the top panel</summary></key>
     <key name="panel-menu-position" type="s"><default>'left'</default><summary>Top panel box for the applications and places menus: left, center, or right</summary></key>
     <key name="show-application-icons" type="b"><default>true</default><summary>Show application icons in the applications menu</summary></key>

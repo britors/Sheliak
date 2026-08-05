@@ -29,7 +29,7 @@ export default class SheliakExtension extends Extension {
         this._settings = this.getSettings('org.gnome.shell.extensions.sheliak');
         this._dock = new Dock(this._settings, this.path);
         this._windowAnimations = new WindowAnimationManager(this._settings);
-        this._panelMenus = new PanelMenus(this._settings);
+        this._panelMenus = new PanelMenus(this._settings, this.path);
         // Sheliak substitui o dash padrão; mantê-lo visível duplicaria os
         // favoritos/apps em execução na Overview.
         this._dashWasVisible = Main.overview.dash.visible;

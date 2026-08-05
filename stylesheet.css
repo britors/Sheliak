@@ -65,49 +65,40 @@
   background-color: rgba(34, 34, 38, 0.28);
 }
 
+.sheliak-indicator-row {
+  margin-top: 3px;
+}
+
 .sheliak-running-indicator {
   width: 7px;
   height: 7px;
-  margin-bottom: 1px;
   border-radius: 4px;
-  background-color: rgba(225, 230, 236, 0.96);
-  border: 1px solid rgba(20, 23, 28, 0.72);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  background-color: #e1e6ec;
 }
 
 .sheliak-window-count {
   width: auto;
-  height: 16px;
-  min-width: 16px;
+  height: 15px;
+  min-width: 15px;
   padding: 0 4px;
   border-radius: 8px;
-  background-color: rgba(225, 230, 236, 0.96);
-  border: 1px solid rgba(20, 23, 28, 0.72);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  background-color: #e1e6ec;
   font-size: 10px;
   font-weight: bold;
-  color: white;
+  color: #20242b;
   text-align: center;
 }
 
-.sheliak-dock.lyra-theme .sheliak-running-indicator {
-  background-color: #3b76f0;
-  border-color: rgba(205, 214, 224, 0.90);
-}
-
+.sheliak-dock.lyra-theme .sheliak-running-indicator,
 .sheliak-dock.lyra-theme .sheliak-window-count {
-  background-color: #3b76f0;
-  border-color: rgba(205, 214, 224, 0.90);
+  background-color: #6ea8ff;
+  color: #16223a;
 }
 
-.sheliak-dock.light-theme .sheliak-running-indicator {
-  background-color: #2563eb;
-  border-color: rgba(255, 255, 255, 0.92);
-}
-
+.sheliak-dock.light-theme .sheliak-running-indicator,
 .sheliak-dock.light-theme .sheliak-window-count {
   background-color: #2563eb;
-  border-color: rgba(255, 255, 255, 0.92);
+  color: white;
 }
 
 .sheliak-app-badge {
@@ -163,4 +154,9 @@
 
 .sheliak-dock.light-theme .sheliak-drag-placeholder {
   background-color: rgba(0, 0, 0, 0.12);
+}
+
+.sheliak-search-entry {
+  width: 220px;
+  margin-left: 6px;
 }

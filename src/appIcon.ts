@@ -59,24 +59,37 @@ export class AppIcon {
             y_align: Clutter.ActorAlign.START,
         });
         iconContainer.add_child(this._badge);
+
         this._runningIndicator = new St.Widget({
             style_class: 'sheliak-running-indicator',
             visible: false,
             width: 7,
             height: 7,
             x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.CENTER,
         });
-        iconContainer.add_child(this._runningIndicator);
         this._windowCountIndicator = new St.Label({
             style_class: 'sheliak-window-count',
             text: '',
             visible: false,
             x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.CENTER,
         });
-        iconContainer.add_child(this._windowCountIndicator);
-        this.actor.set_child(iconContainer);
+        const indicatorRow = new St.Widget({
+            style_class: 'sheliak-indicator-row',
+            layout_manager: new Clutter.BinLayout(),
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        indicatorRow.add_child(this._runningIndicator);
+        indicatorRow.add_child(this._windowCountIndicator);
+
+        const content = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        content.add_child(iconContainer);
+        content.add_child(indicatorRow);
+        this.actor.set_child(content);
 
         this.menu = new AppContextMenu(this.actor, app);
         menuManager.addMenu(this.menu.menu);

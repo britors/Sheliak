@@ -7,6 +7,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {GrabHelper} from 'resource:///org/gnome/shell/ui/grabHelper.js';
 
 import {SignalTracker} from './signals.js';
 
@@ -25,13 +26,11 @@ type Place = {
     icon: Gio.Icon | string;
 };
 
-type GrabHelper = {
-    addActor: (actor: Clutter.Actor) => void;
-    removeActor: (actor: Clutter.Actor) => void;
-};
-
-type PanelPopupMenuManager = PopupMenu.PopupMenuManager & {
-    _grabHelper?: GrabHelper;
+type SearchItem = {
+    name: string;
+    icon: Gio.Icon | string;
+    keywords: string;
+    activate: () => void;
 };
 
 const APP_CATEGORIES = [
@@ -40,7 +39,7 @@ const APP_CATEGORIES = [
     {id: 'Education', label: 'Educação', icon: 'applications-education-symbolic'},
     {id: 'Game', label: 'Jogos', icon: 'applications-games-symbolic'},
     {id: 'Graphics', label: 'Gráficos', icon: 'applications-graphics-symbolic'},
-    {id: 'Network', label: 'Internet', icon: 'applications-internet-symbolic'},
+    {id: 'Network', label: 'Internet', icon: 'web-browser-symbolic'},
     {id: 'Office', label: 'Escritório', icon: 'applications-office-symbolic'},
     {id: 'Science', label: 'Ciência', icon: 'applications-science-symbolic'},
     {id: 'Settings', label: 'Configurações', icon: 'preferences-system-symbolic'},
@@ -59,6 +58,20 @@ const SPECIAL_DIRECTORIES: Array<[GLib.UserDirectory, string, string]> = [
 
 function alphabeticalCompare(a: string, b: string): number {
     return a.localeCompare(b, undefined, {sensitivity: 'base'});
+}
+
+function launchApplication(appSystem: Shell.AppSystem, appInfo: ApplicationInfo): void {
+    const id = appInfo.get_id();
+    const app = id ? appSystem.lookup_app(id) : null;
+    try {
+        if (app)
+            app.activate();
+        else
+            appInfo.launch([], null);
+    } catch (error) {
+        console.error(`Sheliak: falha ao abrir ${appInfo.get_display_name()}: ${error}`);
+        Main.notifyError('Não foi possível abrir o aplicativo', String(error));
+    }
 }
 
 function panelLabel(text: string, iconName: string): St.BoxLayout {
@@ -99,14 +112,49 @@ class ApplicationsIndicator {
     private _signals = new SignalTracker();
     private _categoryMenus: PopupMenu.PopupMenu[] = [];
     private _openCategoryMenu: PopupMenu.PopupMenu | null = null;
-    private _grabHelper = (Main.panel.menuManager as PanelPopupMenuManager)._grabHelper;
+    private _grabHelper: GrabHelper;
+    private _icon: St.Icon;
+    // See showAppsButton.ts: St.Icon's `gicon` type comes from a separately
+    // versioned nested @girs/gio-2.0 package, structurally incompatible with
+    // the top-level Gio.Icon type here.
+    private _darkIcon: never | null = null;
+    private _lightIcon: never | null = null;
+    private _interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
 
-    constructor(settings: Gio.Settings) {
+    constructor(settings: Gio.Settings, extensionPath?: string) {
         this._settings = settings;
         this.button = new PanelMenu.Button(0.5, 'Aplicativos');
-        this.button.add_child(panelLabel('Aplicativos', 'view-app-grid-symbolic'));
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
+        this._grabHelper = new GrabHelper(this.button);
+
+        if (extensionPath) {
+            this._darkIcon = Gio.icon_new_for_string(GLib.build_filenamev(
+                [extensionPath, 'icons', 'sheliak-logo-symbolic.svg'])) as never;
+            this._lightIcon = Gio.icon_new_for_string(GLib.build_filenamev(
+                [extensionPath, 'icons', 'sheliak-logo-symbolic-dark.svg'])) as never;
+        }
+        const box = new St.BoxLayout({
+            style_class: 'panel-status-menu-box',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._icon = this._darkIcon
+            ? new St.Icon({
+                gicon: this._darkIcon,
+                style_class: 'system-status-icon',
+                y_align: Clutter.ActorAlign.CENTER,
+            })
+            : new St.Icon({
+                icon_name: 'view-app-grid-symbolic',
+                style_class: 'system-status-icon',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        box.add_child(this._icon);
+        box.add_child(new St.Label({
+            text: 'Aplicativos',
+            y_align: Clutter.ActorAlign.CENTER,
+        }));
+        this.button.add_child(box);
 
         this._signals.connect(this._appSystem, 'installed-changed', () => this._rebuild());
         for (const key of ['show-application-icons', 'sort-applications-menu',
@@ -119,6 +167,9 @@ class ApplicationsIndicator {
                 if (!open)
                     this._closeCategoryMenus();
             });
+        this._signals.connect(this._interfaceSettings, 'changed::color-scheme',
+            () => this._syncTheme());
+        this._syncTheme();
         this._rebuild();
     }
 
@@ -126,6 +177,13 @@ class ApplicationsIndicator {
         this._signals.destroy();
         this._destroyCategoryMenus();
         this.button.destroy();
+    }
+
+    private _syncTheme(): void {
+        const isLight = this._interfaceSettings.get_string('color-scheme') !== 'prefer-dark';
+        const gicon = isLight ? this._lightIcon : this._darkIcon;
+        if (gicon)
+            this._icon.set_gicon(gicon);
     }
 
     private _rebuild(): void {
@@ -215,7 +273,7 @@ class ApplicationsIndicator {
             : new PopupMenu.PopupMenuItem(appInfo.get_display_name());
         item.connect('activate', () => {
             (this.button.menu as PopupMenu.PopupMenu).close();
-            this._launch(appInfo);
+            launchApplication(this._appSystem, appInfo);
         });
         return item;
     }
@@ -227,7 +285,6 @@ class ApplicationsIndicator {
         menu.actor.add_style_class_name('sheliak-panel-menu');
         Main.uiGroup.add_child(menu.actor);
         menu.actor.hide();
-        this._grabHelper?.addActor(menu.actor);
         this._categoryMenus.push(menu);
         return menu;
     }
@@ -235,38 +292,37 @@ class ApplicationsIndicator {
     private _openCategory(menu: PopupMenu.PopupMenu): void {
         if (this._openCategoryMenu === menu)
             return;
-        this._openCategoryMenu?.close();
+        this._closeCategoryMenus();
+        // O menu principal já mantém um grab modal próprio; sem estender
+        // esse grab para o submenu flutuante, seus itens nunca recebem
+        // eventos de ponteiro e não realçam ao passar o mouse.
+        const grabbed = this._grabHelper.grab({
+            actor: menu.actor,
+            onUngrab: () => {
+                menu.close();
+                if (this._openCategoryMenu === menu)
+                    this._openCategoryMenu = null;
+            },
+        });
+        if (!grabbed)
+            return;
         this._openCategoryMenu = menu;
         menu.open();
     }
 
     private _closeCategoryMenus(): void {
+        if (this._openCategoryMenu)
+            this._grabHelper.ungrab({actor: this._openCategoryMenu.actor});
         for (const menu of this._categoryMenus)
             menu.close();
-        this._openCategoryMenu = null;
     }
 
     private _destroyCategoryMenus(): void {
         this._closeCategoryMenus();
-        for (const menu of this._categoryMenus.splice(0)) {
-            this._grabHelper?.removeActor(menu.actor);
+        for (const menu of this._categoryMenus.splice(0))
             menu.destroy();
-        }
     }
 
-    private _launch(appInfo: ApplicationInfo): void {
-        const id = appInfo.get_id();
-        const app = id ? this._appSystem.lookup_app(id) : null;
-        try {
-            if (app)
-                app.activate();
-            else
-                appInfo.launch([], null);
-        } catch (error) {
-            console.error(`Sheliak: falha ao abrir ${appInfo.get_display_name()}: ${error}`);
-            Main.notifyError('Não foi possível abrir o aplicativo', String(error));
-        }
-    }
 }
 
 class PlacesIndicator {
@@ -437,16 +493,278 @@ class PlacesIndicator {
     }
 }
 
+class SystemIndicator {
+    readonly button: PanelMenu.Button;
+    private _settings: Gio.Settings;
+    private _appSystem = Shell.AppSystem.get_default();
+
+    constructor(settings: Gio.Settings) {
+        this._settings = settings;
+        this.button = new PanelMenu.Button(0.5, 'Sistema');
+        this.button.add_child(panelLabel('Sistema', 'preferences-system-symbolic'));
+        const menu = this.button.menu as PopupMenu.PopupMenu;
+        menu.actor.add_style_class_name('sheliak-panel-menu');
+
+        const vegaIcon = (this._appSystem.lookup_app('vega.desktop')?.get_icon() as
+            unknown as Gio.Icon | undefined) ?? 'preferences-other-symbolic';
+        const settingsItem = new PopupMenu.PopupImageMenuItem('Vega', vegaIcon);
+        settingsItem.connect('activate', () => {
+            menu.close();
+            this._openVega();
+        });
+        menu.addMenuItem(settingsItem);
+
+        if (this._settings.get_boolean('show-system-about')) {
+            const aboutItem = new PopupMenu.PopupImageMenuItem('Sobre', 'help-about-symbolic');
+            aboutItem.connect('activate', () => {
+                menu.close();
+                this._openSystemAbout();
+            });
+            menu.addMenuItem(aboutItem);
+        }
+    }
+
+    destroy(): void {
+        this.button.destroy();
+    }
+
+    private _openVega(): void {
+        const app = this._appSystem.lookup_app('vega.desktop');
+        try {
+            if (app)
+                app.activate();
+            else
+                Gio.Subprocess.new(['vega-gtk'], Gio.SubprocessFlags.NONE);
+        } catch (error) {
+            console.error(`Sheliak: falha ao abrir o Vega: ${error}`);
+            Main.notifyError('Não foi possível abrir o Vega', String(error));
+        }
+    }
+
+    private _openSystemAbout(): void {
+        try {
+            Gio.Subprocess.new(['gnome-control-center', 'system'], Gio.SubprocessFlags.NONE);
+        } catch (error) {
+            console.error(`Sheliak: falha ao abrir as informações do sistema: ${error}`);
+            Main.notifyError('Não foi possível abrir as informações do sistema', String(error));
+        }
+    }
+}
+
+class SearchIndicator {
+    readonly button: PanelMenu.Button;
+    private _appSystem = Shell.AppSystem.get_default();
+    private _signals = new SignalTracker();
+    private _entry: St.Entry;
+    private _resultsMenu: PopupMenu.PopupMenu;
+    private _index: SearchItem[] = [];
+    private _topResult: SearchItem | null = null;
+    private _stageClickId = 0;
+
+    constructor() {
+        this.button = new PanelMenu.Button(0.5, 'Buscar', true);
+
+        const box = new St.BoxLayout({
+            style_class: 'panel-status-menu-box',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        const iconButton = new St.Button({
+            style_class: 'system-status-icon',
+            child: new St.Icon({icon_name: 'edit-find-symbolic', y_align: Clutter.ActorAlign.CENTER}),
+            can_focus: true,
+            track_hover: true,
+        });
+        this._signals.connect(iconButton, 'clicked', () => this._toggleSearch());
+        box.add_child(iconButton);
+
+        this._entry = new St.Entry({
+            style_class: 'search-entry sheliak-search-entry',
+            hint_text: 'Buscar aplicativos e configurações…',
+            can_focus: true,
+            visible: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(this._entry);
+        this.button.add_child(box);
+
+        // Sem grab modal: o campo permanece fora do popup de resultados, e um
+        // grab restringiria os eventos de teclado ao popup, bloqueando a
+        // digitação. O fechamento ao clicar fora é feito manualmente.
+        this._resultsMenu = new PopupMenu.PopupMenu(this._entry, 0.0, St.Side.TOP);
+        this._resultsMenu.actor.add_style_class_name('sheliak-panel-menu');
+        Main.uiGroup.add_child(this._resultsMenu.actor);
+        this._resultsMenu.actor.hide();
+
+        this._signals.connect(this._entry.clutter_text, 'text-changed', () => this._updateResults());
+        this._signals.connect(this._entry.clutter_text, 'key-press-event',
+            (_actor: unknown, event: Clutter.Event) => this._onEntryKeyPress(event));
+
+        this._signals.connect(this._appSystem, 'installed-changed', () => this._rebuildIndex());
+        this._rebuildIndex();
+    }
+
+    destroy(): void {
+        this._signals.destroy();
+        this._disconnectStageClick();
+        this._resultsMenu.destroy();
+        this.button.destroy();
+    }
+
+    private _toggleSearch(): void {
+        if (this._entry.visible)
+            this._closeSearch();
+        else
+            this._openSearch();
+    }
+
+    private _openSearch(): void {
+        this._entry.visible = true;
+        this._entry.set_text('');
+        this._entry.clutter_text.grab_key_focus();
+        this._connectStageClick();
+    }
+
+    private _closeSearch(): void {
+        this._resultsMenu.close();
+        this._entry.set_text('');
+        this._entry.visible = false;
+        this._disconnectStageClick();
+    }
+
+    private _connectStageClick(): void {
+        if (this._stageClickId)
+            return;
+        this._stageClickId = global.stage.connect('button-press-event',
+            (_actor: unknown, event: Clutter.Event) => this._onStageClick(event));
+    }
+
+    private _disconnectStageClick(): void {
+        if (this._stageClickId) {
+            global.stage.disconnect(this._stageClickId);
+            this._stageClickId = 0;
+        }
+    }
+
+    private _onStageClick(event: Clutter.Event): boolean {
+        const target = event.get_source() as Clutter.Actor | null;
+        const withinButton = target && this.button.contains(target);
+        const withinResults = target && this._resultsMenu.actor.contains(target);
+        if (!withinButton && !withinResults)
+            this._closeSearch();
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    private _onEntryKeyPress(event: Clutter.Event): boolean {
+        const symbol = event.get_key_symbol();
+        if (symbol === Clutter.KEY_Escape) {
+            this._closeSearch();
+            return Clutter.EVENT_STOP;
+        }
+        if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter) {
+            if (this._topResult) {
+                const item = this._topResult;
+                this._closeSearch();
+                item.activate();
+            }
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    private _updateResults(): void {
+        const query = this._entry.get_text().trim().toLowerCase();
+        this._resultsMenu.removeAll();
+        this._topResult = null;
+
+        if (!query) {
+            this._resultsMenu.close();
+            return;
+        }
+
+        const starts: SearchItem[] = [];
+        const contains: SearchItem[] = [];
+        for (const item of this._index) {
+            if (item.keywords.startsWith(query))
+                starts.push(item);
+            else if (item.keywords.includes(query))
+                contains.push(item);
+        }
+        const matches = [...starts, ...contains].slice(0, 8);
+        this._topResult = matches[0] ?? null;
+
+        if (matches.length === 0) {
+            this._resultsMenu.addMenuItem(new PopupMenu.PopupMenuItem(
+                'Nenhum resultado encontrado', {reactive: false}));
+        } else {
+            for (const item of matches) {
+                const menuItem = new PopupMenu.PopupImageMenuItem(item.name, item.icon);
+                menuItem.connect('activate', () => {
+                    this._closeSearch();
+                    item.activate();
+                });
+                this._resultsMenu.addMenuItem(menuItem);
+            }
+        }
+
+        if (!this._resultsMenu.isOpen)
+            this._resultsMenu.open();
+    }
+
+    private _rebuildIndex(): void {
+        const index: SearchItem[] = [];
+        const seen = new Set<string>();
+
+        for (const appInfo of this._appSystem.get_installed() as unknown as ApplicationInfo[]) {
+            const id = appInfo.get_id();
+            if (!id || seen.has(id) || !appInfo.should_show())
+                continue;
+            seen.add(id);
+            const name = appInfo.get_display_name();
+            index.push({
+                name,
+                icon: appInfo.get_icon() ? appInfo.get_icon() as Gio.Icon
+                    : 'application-x-executable-symbolic',
+                keywords: name.toLowerCase(),
+                activate: () => launchApplication(this._appSystem, appInfo),
+            });
+        }
+
+        for (const appInfo of Gio.AppInfo.get_all() as unknown as ApplicationInfo[]) {
+            const id = appInfo.get_id();
+            if (!id || seen.has(id))
+                continue;
+            const categories = new Set((appInfo.get_categories?.() ?? '').split(';').filter(Boolean));
+            if (!categories.has('X-GNOME-Settings-Panel'))
+                continue;
+            seen.add(id);
+            const name = appInfo.get_display_name();
+            index.push({
+                name,
+                icon: appInfo.get_icon() ? appInfo.get_icon() as Gio.Icon
+                    : 'preferences-system-symbolic',
+                keywords: name.toLowerCase(),
+                activate: () => launchApplication(this._appSystem, appInfo),
+            });
+        }
+
+        this._index = index;
+    }
+}
+
 export class PanelMenus {
     private _settings: Gio.Settings;
     private _signals = new SignalTracker();
     private _applications: ApplicationsIndicator | null = null;
     private _places: PlacesIndicator | null = null;
+    private _system: SystemIndicator | null = null;
+    private _search: SearchIndicator | null = null;
+    private _extensionPath?: string;
 
-    constructor(settings: Gio.Settings) {
+    constructor(settings: Gio.Settings, extensionPath?: string) {
         this._settings = settings;
+        this._extensionPath = extensionPath;
         for (const key of ['show-applications-menu', 'show-places-menu',
-            'panel-menu-position']) {
+            'show-system-menu', 'show-system-about', 'show-search-menu', 'panel-menu-position']) {
             this._signals.connect(this._settings, `changed::${key}`,
                 () => this._recreate());
         }
@@ -468,18 +786,32 @@ export class PanelMenus {
         let position = box === 'left' ? 1 : 0;
 
         if (this._settings.get_boolean('show-applications-menu')) {
-            this._applications = new ApplicationsIndicator(this._settings);
+            this._applications = new ApplicationsIndicator(this._settings, this._extensionPath);
             Main.panel.addToStatusArea(
                 'sheliak-applications', this._applications.button, position++, box);
         }
         if (this._settings.get_boolean('show-places-menu')) {
             this._places = new PlacesIndicator(this._settings);
             Main.panel.addToStatusArea(
-                'sheliak-places', this._places.button, position, box);
+                'sheliak-places', this._places.button, position++, box);
+        }
+        if (this._settings.get_boolean('show-system-menu')) {
+            this._system = new SystemIndicator(this._settings);
+            Main.panel.addToStatusArea(
+                'sheliak-system', this._system.button, position++, box);
+        }
+        if (this._settings.get_boolean('show-search-menu')) {
+            this._search = new SearchIndicator();
+            Main.panel.addToStatusArea(
+                'sheliak-search', this._search.button, position, box);
         }
     }
 
     private _destroyIndicators(): void {
+        this._search?.destroy();
+        this._search = null;
+        this._system?.destroy();
+        this._system = null;
         this._places?.destroy();
         this._places = null;
         this._applications?.destroy();
