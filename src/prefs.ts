@@ -88,6 +88,24 @@ function addRunningAppsPosition(group: Adw.PreferencesGroup, settings: Gio.Setti
     group.add(row);
 }
 
+function addPanelMenuPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
+    const row = new Adw.ActionRow({
+        title: 'Posição na barra',
+        subtitle: 'Área da barra superior onde os menus aparecem',
+    });
+    const values = [['left', 'Esquerda'], ['center', 'Centro'], ['right', 'Direita']];
+    const model = Gtk.StringList.new(values.map(([, label]) => label));
+    const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
+    const selected = () => Math.max(0,
+        values.findIndex(([id]) => id === settings.get_string('panel-menu-position')));
+    combo.selected = selected();
+    combo.connect('notify::selected', () => settings.set_string(
+        'panel-menu-position', values[combo.selected]?.[0] ?? 'left'));
+    settings.connect('changed::panel-menu-position', () => combo.set_selected(selected()));
+    row.add_suffix(combo);
+    group.add(row);
+}
+
 function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
     const row = new Adw.ActionRow({title: 'Visibilidade do dock', subtitle: 'Como o dock deve permanecer na tela'});
     const values = [
@@ -135,6 +153,27 @@ export default class SheliakPreferences extends ExtensionPreferences {
         addSwitch(contentGroup, settings, 'show-apps-button', 'Mostrar aplicativos', 'Mostrar o botão da grade de aplicativos');
         content.add(contentGroup);
 
+        const panel = new Adw.PreferencesPage({
+            title: 'Barra superior',
+            icon_name: 'view-more-symbolic',
+        });
+        const panelGroup = new Adw.PreferencesGroup({title: 'Menus do painel'});
+        addSwitch(panelGroup, settings, 'show-applications-menu', 'Menu Aplicativos',
+            'Mostrar aplicativos instalados, organizados por categoria');
+        addSwitch(panelGroup, settings, 'show-places-menu', 'Menu Locais',
+            'Mostrar pastas pessoais, marcadores e dispositivos');
+        addPanelMenuPosition(panelGroup, settings);
+        panel.add(panelGroup);
+
+        const panelContentGroup = new Adw.PreferencesGroup({title: 'Conteúdo dos menus'});
+        addSwitch(panelContentGroup, settings, 'show-application-icons',
+            'Ícones dos aplicativos', 'Mostrar o ícone ao lado do nome de cada aplicativo');
+        addSwitch(panelContentGroup, settings, 'show-place-bookmarks',
+            'Marcadores em Locais', 'Incluir os marcadores configurados no gerenciador de arquivos');
+        addSwitch(panelContentGroup, settings, 'show-place-volumes',
+            'Dispositivos em Locais', 'Incluir volumes e locais remotos montados');
+        panel.add(panelContentGroup);
+
         const about = new Adw.PreferencesPage({title: 'Sobre', icon_name: 'help-about-symbolic'});
         const aboutGroup = new Adw.PreferencesGroup({title: 'Sheliak'});
         const aboutRow = new Adw.ActionRow({title: 'Sobre o Sheliak', subtitle: 'Website, reportar erro, créditos e informações legais', activatable: true});
@@ -143,7 +182,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
                 application_name: 'Sheliak',
                 application_icon: 'folder-download-symbolic',
                 developer_name: 'Lyra OS',
-                version: '1.0.0',
+                version: '1.2.0',
                 website: 'https://github.com/britors/Sheliak',
                 issue_url: 'https://github.com/britors/Sheliak/issues',
                 license_type: Gtk.License.GPL_3_0,
@@ -159,6 +198,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
         window.add(appearance);
         window.add(behavior);
         window.add(content);
+        window.add(panel);
         window.add(about);
     }
 }

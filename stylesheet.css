@@ -126,6 +126,14 @@
   min-width: 220px;
 }
 
+.sheliak-panel-menu-icon {
+  margin-right: 4px;
+}
+
+.sheliak-panel-menu .popup-menu-content {
+  min-width: 240px;
+}
+
 .sheliak-app-button.dragging {
   opacity: 0.4;
 }

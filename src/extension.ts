@@ -4,10 +4,12 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Dock} from './dock.js';
 import {WindowAnimationManager} from './magicLamp.js';
+import {PanelMenus} from './panelMenus.js';
 
 export default class SheliakExtension extends Extension {
     private _dock: Dock | null = null;
     private _windowAnimations: WindowAnimationManager | null = null;
+    private _panelMenus: PanelMenus | null = null;
     private _dashWasVisible = true;
 
     enable(): void {
@@ -15,6 +17,7 @@ export default class SheliakExtension extends Extension {
         const settings = this.getSettings('org.gnome.shell.extensions.sheliak');
         this._dock = new Dock(settings, this.path);
         this._windowAnimations = new WindowAnimationManager(settings);
+        this._panelMenus = new PanelMenus(settings);
         // Sheliak substitui o dash padrão; mantê-lo visível duplicaria os
         // favoritos/apps em execução na Overview.
         this._dashWasVisible = Main.overview.dash.visible;
@@ -26,6 +29,8 @@ export default class SheliakExtension extends Extension {
         console.debug(`Sheliak: disable() em ${this.uuid}`);
         if (this._dashWasVisible)
             Main.overview.dash.show();
+        this._panelMenus?.destroy();
+        this._panelMenus = null;
         this._windowAnimations?.destroy();
         this._windowAnimations = null;
         this._dock?.destroy();

@@ -5,6 +5,12 @@ aplicativos em execução, menus por aplicativo, lixeira dinâmica e acesso à
 grade nativa de aplicativos. O dock fica centralizado na borda inferior e usa
 ocultação inteligente quando uma janela ocupa sua área.
 
+A extensão também oferece menus opcionais de **Aplicativos** e **Locais** na
+barra superior. Aplicativos são organizados por categoria; Locais reúne pastas
+pessoais, marcadores do gerenciador de arquivos e volumes montados. Cada menu,
+sua posição na barra e seus conteúdos dinâmicos podem ser configurados na página
+Barra superior das preferências.
+
 Ao minimizar ou restaurar uma janela, o Sheliak oferece animações de lâmpada
 mágica, zoom ao ícone e desvanecimento, além da opção sem animação. Os efeitos
 que usam o item correspondente no dock como destino acompanham o dock nas
