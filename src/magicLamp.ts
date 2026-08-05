@@ -228,32 +228,31 @@ class MagicLampEffect extends Clutter.DeformEffect {
     }
 });
 
-type WindowManagerInternals = {
-    _shouldAnimateActor(actor: Meta.WindowActor, types: Meta.WindowType[]): boolean;
-};
-
 export class MagicLampManager {
-    private _wm = Main.wm as unknown as WindowManagerInternals;
     private _shellwm = global.window_manager;
-    private _originalShouldAnimate = this._wm._shouldAnimateActor;
     private _originalCompletedMinimize = this._shellwm.completed_minimize;
     private _originalCompletedUnminimize = this._shellwm.completed_unminimize;
-    private _patchedShouldAnimate: WindowManagerInternals['_shouldAnimateActor'];
-    private _patchedCompletedMinimize = (_actor: Meta.WindowActor) => {};
-    private _patchedCompletedUnminimize = (_actor: Meta.WindowActor) => {};
+    private _nativeSignalIds: number[] = [];
     private _signalIds: number[] = [];
 
     constructor() {
-        this._patchedShouldAnimate = (actor, types) => {
-            const stack = new Error().stack ?? '';
-            if (stack.includes('_minimizeWindow') || stack.includes('_unminimizeWindow'))
-                return false;
-            return this._originalShouldAnimate.call(this._wm, actor, types);
-        };
-
-        this._wm._shouldAnimateActor = this._patchedShouldAnimate;
-        this._shellwm.completed_minimize = this._patchedCompletedMinimize;
-        this._shellwm.completed_unminimize = this._patchedCompletedUnminimize;
+        // Main.wm connects its minimize handlers before extensions are loaded.
+        // Block those exact handlers while Sheliak owns the animations; merely
+        // replacing methods on Main.wm does not change callbacks that GObject
+        // has already connected.
+        for (const signalId of ['minimize', 'unminimize']) {
+            const handlerId = Number(GObject.signal_handler_find(
+                this._shellwm as never, {signalId} as never));
+            if (!handlerId) {
+                console.error(`Sheliak: manipulador nativo de ${signalId} não encontrado`);
+                for (const id of this._nativeSignalIds)
+                    this._shellwm.unblock_signal_handler(id);
+                this._nativeSignalIds = [];
+                return;
+            }
+            this._shellwm.block_signal_handler(handlerId);
+            this._nativeSignalIds.push(handlerId);
+        }
 
         this._signalIds.push(this._shellwm.connect('minimize', (_wm, actor) => {
             this._animate(actor, true);
@@ -315,11 +314,8 @@ export class MagicLampManager {
         for (const actor of global.get_window_actors())
             this._destroyActorEffects(actor);
 
-        if (this._wm._shouldAnimateActor === this._patchedShouldAnimate)
-            this._wm._shouldAnimateActor = this._originalShouldAnimate;
-        if (this._shellwm.completed_minimize === this._patchedCompletedMinimize)
-            this._shellwm.completed_minimize = this._originalCompletedMinimize;
-        if (this._shellwm.completed_unminimize === this._patchedCompletedUnminimize)
-            this._shellwm.completed_unminimize = this._originalCompletedUnminimize;
+        for (const id of this._nativeSignalIds)
+            this._shellwm.unblock_signal_handler(id);
+        this._nativeSignalIds = [];
     }
 }
