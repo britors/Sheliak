@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
@@ -15,7 +16,11 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const MINIMIZE_EFFECT = 'sheliak-minimize-magic-lamp';
 const UNMINIMIZE_EFFECT = 'sheliak-unminimize-magic-lamp';
 const DURATION = 380;
+const ZOOM_DURATION = 260;
+const FADE_DURATION = 200;
 const EDGE_EPSILON = 48;
+
+type AnimationMode = 'magic-lamp' | 'zoom' | 'fade' | 'none';
 
 type Completion = (actor: Meta.WindowActor) => void;
 
@@ -23,6 +28,20 @@ type EffectParams = {
     target: Mtk.Rectangle;
     minimizing: boolean;
     complete: Completion;
+};
+
+interface ActiveWindowAnimation {
+    finish(): void;
+}
+
+type ActorState = {
+    opacity: number;
+    scaleX: number;
+    scaleY: number;
+    translationX: number;
+    translationY: number;
+    pivotX: number;
+    pivotY: number;
 };
 
 const MagicLampEffect = GObject.registerClass(
@@ -228,14 +247,113 @@ class MagicLampEffect extends Clutter.DeformEffect {
     }
 });
 
-export class MagicLampManager {
+class TransformAnimation implements ActiveWindowAnimation {
+    private _timeline: Clutter.Timeline | null;
+    private _timelineSignals: number[] = [];
+    private _finished = false;
+    private _state: ActorState;
+    private _targetScale = 1;
+    private _targetTranslationX = 0;
+    private _targetTranslationY = 0;
+
+    constructor(
+        private _actor: Meta.WindowActor,
+        target: Mtk.Rectangle,
+        private _minimizing: boolean,
+        private _mode: 'zoom' | 'fade',
+        private _complete: Completion,
+    ) {
+        const [pivotX, pivotY] = _actor.get_pivot_point();
+        this._state = {
+            opacity: _actor.opacity,
+            scaleX: _actor.scale_x,
+            scaleY: _actor.scale_y,
+            translationX: _actor.translation_x,
+            translationY: _actor.translation_y,
+            pivotX,
+            pivotY,
+        };
+
+        if (_mode === 'zoom') {
+            const [width, height] = _actor.get_size();
+            const targetWidth = Math.max(1, target.width);
+            const targetHeight = Math.max(1, target.height);
+            this._targetScale = Math.max(0.04,
+                Math.min(targetWidth / Math.max(1, width),
+                    targetHeight / Math.max(1, height)));
+            this._targetTranslationX = this._state.translationX +
+                target.x + target.width / 2 - (_actor.x + width / 2);
+            this._targetTranslationY = this._state.translationY +
+                target.y + target.height / 2 - (_actor.y + height / 2);
+        } else {
+            this._targetScale = 0.92;
+            this._targetTranslationX = this._state.translationX;
+            this._targetTranslationY = this._state.translationY;
+        }
+
+        _actor.set_pivot_point(0.5, 0.5);
+        this._apply(0);
+        this._timeline = new Clutter.Timeline({
+            actor: _actor,
+            duration: _mode === 'zoom' ? ZOOM_DURATION : FADE_DURATION,
+        });
+        this._timelineSignals.push(this._timeline.connect('new-frame', () => {
+            if (this._timeline)
+                this._apply(this._timeline.get_progress());
+        }));
+        this._timelineSignals.push(this._timeline.connect('completed', () => this.finish()));
+        this._timeline.start();
+    }
+
+    private _apply(progress: number): void {
+        // Minimize accelerates into the icon; restore decelerates out of it.
+        const collapsed = this._minimizing
+            ? progress * progress * progress
+            : Math.pow(1 - progress, 3);
+        const scale = 1 + (this._targetScale - 1) * collapsed;
+        const opacity = Math.round(this._state.opacity * (1 - collapsed));
+
+        this._actor.scale_x = this._state.scaleX * scale;
+        this._actor.scale_y = this._state.scaleY * scale;
+        this._actor.translation_x = this._state.translationX +
+            (this._targetTranslationX - this._state.translationX) * collapsed;
+        this._actor.translation_y = this._state.translationY +
+            (this._targetTranslationY - this._state.translationY) * collapsed;
+        this._actor.opacity = opacity;
+    }
+
+    finish(): void {
+        if (this._finished)
+            return;
+        this._finished = true;
+
+        if (this._timeline) {
+            for (const id of this._timelineSignals)
+                this._timeline.disconnect(id);
+            this._timelineSignals = [];
+            this._timeline.stop();
+            this._timeline = null;
+        }
+
+        this._actor.opacity = this._state.opacity;
+        this._actor.scale_x = this._state.scaleX;
+        this._actor.scale_y = this._state.scaleY;
+        this._actor.translation_x = this._state.translationX;
+        this._actor.translation_y = this._state.translationY;
+        this._actor.set_pivot_point(this._state.pivotX, this._state.pivotY);
+        this._complete(this._actor);
+    }
+}
+
+export class WindowAnimationManager {
     private _shellwm = global.window_manager;
     private _originalCompletedMinimize = this._shellwm.completed_minimize;
     private _originalCompletedUnminimize = this._shellwm.completed_unminimize;
     private _nativeSignalIds: number[] = [];
     private _signalIds: number[] = [];
+    private _activeAnimations = new Map<Meta.WindowActor, ActiveWindowAnimation>();
 
-    constructor() {
+    constructor(private _settings: Gio.Settings) {
         // Main.wm connects its minimize handlers before extensions are loaded.
         // Block those exact handlers while Sheliak owns the animations; merely
         // replacing methods on Main.wm does not change callbacks that GObject
@@ -267,9 +385,13 @@ export class MagicLampManager {
     }
 
     private _animate(actor: Meta.WindowActor, minimizing: boolean): void {
-        const complete = minimizing
+        const shellComplete = minimizing
             ? this._originalCompletedMinimize.bind(this._shellwm)
             : this._originalCompletedUnminimize.bind(this._shellwm);
+        const complete = (completedActor: Meta.WindowActor) => {
+            this._activeAnimations.delete(completedActor);
+            shellComplete(completedActor);
+        };
 
         if (Main.overview.visible || !St.Settings.get().enable_animations) {
             complete(actor);
@@ -277,6 +399,12 @@ export class MagicLampManager {
         }
 
         this._destroyActorEffects(actor);
+        const mode = this._animationMode();
+        if (mode === 'none') {
+            complete(actor);
+            return;
+        }
+
         const metaWindow = actor.meta_window;
         if (!metaWindow) {
             complete(actor);
@@ -284,8 +412,22 @@ export class MagicLampManager {
         }
         const [hasGeometry, geometry] = metaWindow.get_icon_geometry();
         const target = hasGeometry ? geometry : this._fallbackTarget(actor);
-        const effect = new MagicLampEffect({target, minimizing, complete} as never);
-        actor.add_effect_with_name(minimizing ? MINIMIZE_EFFECT : UNMINIMIZE_EFFECT, effect);
+        if (mode === 'magic-lamp') {
+            const effect = new MagicLampEffect({target, minimizing, complete} as never);
+            this._activeAnimations.set(actor, effect);
+            actor.add_effect_with_name(minimizing ? MINIMIZE_EFFECT : UNMINIMIZE_EFFECT, effect);
+        } else {
+            const animation = new TransformAnimation(
+                actor, target, minimizing, mode, complete);
+            this._activeAnimations.set(actor, animation);
+        }
+    }
+
+    private _animationMode(): AnimationMode {
+        const mode = this._settings.get_string('minimize-animation');
+        if (mode === 'zoom' || mode === 'fade' || mode === 'none')
+            return mode;
+        return 'magic-lamp';
     }
 
     private _fallbackTarget(actor: Meta.WindowActor): Mtk.Rectangle {
@@ -302,8 +444,7 @@ export class MagicLampManager {
     }
 
     private _destroyActorEffects(actor: Meta.WindowActor): void {
-        for (const name of [MINIMIZE_EFFECT, UNMINIMIZE_EFFECT])
-            (actor.get_effect(name) as InstanceType<typeof MagicLampEffect> | null)?.finish();
+        this._activeAnimations.get(actor)?.finish();
     }
 
     destroy(): void {
@@ -313,6 +454,7 @@ export class MagicLampManager {
 
         for (const actor of global.get_window_actors())
             this._destroyActorEffects(actor);
+        this._activeAnimations.clear();
 
         for (const id of this._nativeSignalIds)
             this._shellwm.unblock_signal_handler(id);

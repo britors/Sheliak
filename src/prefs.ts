@@ -26,6 +26,29 @@ function addSpin(group: Adw.PreferencesGroup, settings: Gio.Settings,
     group.add(row);
 }
 
+function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
+    const row = new Adw.ActionRow({
+        title: 'Animação ao minimizar',
+        subtitle: 'Efeito usado ao minimizar e restaurar janelas',
+    });
+    const values = [
+        ['magic-lamp', 'Lâmpada mágica'],
+        ['zoom', 'Zoom ao ícone'],
+        ['fade', 'Desvanecer'],
+        ['none', 'Sem animação'],
+    ];
+    const model = Gtk.StringList.new(values.map(([, label]) => label));
+    const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
+    const selected = () => Math.max(0,
+        values.findIndex(([id]) => id === settings.get_string('minimize-animation')));
+    combo.selected = selected();
+    combo.connect('notify::selected', () => settings.set_string(
+        'minimize-animation', values[combo.selected]?.[0] ?? 'magic-lamp'));
+    settings.connect('changed::minimize-animation', () => combo.set_selected(selected()));
+    row.add_suffix(combo);
+    group.add(row);
+}
+
 function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
     const row = new Adw.ActionRow({title: 'Posição', subtitle: 'Lado da tela onde o dock aparece'});
     const values = [['bottom', 'Inferior'], ['top', 'Superior'], ['left', 'Esquerda'], ['right', 'Direita']];
@@ -91,7 +114,8 @@ export default class SheliakPreferences extends ExtensionPreferences {
         addPosition(appearanceGroup, settings);
         addSpin(appearanceGroup, settings, 'icon-size', 'Tamanho dos ícones', 'Tamanho em pixels', 24, 96, 1);
         addSpin(appearanceGroup, settings, 'edge-margin', 'Margem da borda', 'Distância em pixels', 0, 48, 1);
-        addSwitch(appearanceGroup, settings, 'animation', 'Animações', 'Animar a entrada e saída do dock');
+        addSwitch(appearanceGroup, settings, 'animation', 'Animar o dock', 'Animar a entrada e saída do dock');
+        addMinimizeAnimation(appearanceGroup, settings);
         addSwitch(appearanceGroup, settings, 'extend-to-edges', 'Estender até as bordas', 'Ocupar todo o comprimento da borda em vez de se ajustar ao conteúdo');
         addContentAlignment(appearanceGroup, settings);
         appearance.add(appearanceGroup);

@@ -5,15 +5,16 @@ aplicativos em execução, menus por aplicativo, lixeira dinâmica e acesso à
 grade nativa de aplicativos. O dock fica centralizado na borda inferior e usa
 ocultação inteligente quando uma janela ocupa sua área.
 
-Ao minimizar ou restaurar uma janela, o Sheliak usa o item correspondente no
-dock como destino da animação de lâmpada mágica. O efeito acompanha o dock nas
+Ao minimizar ou restaurar uma janela, o Sheliak oferece animações de lâmpada
+mágica, zoom ao ícone e desvanecimento, além da opção sem animação. Os efeitos
+que usam o item correspondente no dock como destino acompanham o dock nas
 bordas inferior, superior, esquerda e direita.
 
 As configurações podem ser abertas pelo gerenciador de extensões do GNOME e
-incluem posição, tamanho dos ícones, margem, animações e três modos de
-visibilidade (ocultação inteligente, auto hide e sempre ativo), além dos
-elementos exibidos. A página Sobre reúne website, relatório de erros, créditos
-e informações legais.
+incluem posição, tamanho dos ícones, margem, animações do dock e das janelas e
+três modos de visibilidade (ocultação inteligente, auto hide e sempre ativo),
+além dos elementos exibidos. A página Sobre reúne website, relatório de erros,
+créditos e informações legais.
 
 ## Compatibilidade
 
