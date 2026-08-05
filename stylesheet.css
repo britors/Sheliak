@@ -45,24 +45,24 @@
 .sheliak-app-button:focus,
 .sheliak-system-button:hover,
 .sheliak-system-button:focus {
-  background-color: rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.17);
 }
 
 .sheliak-dock.light-theme .sheliak-app-button:hover,
 .sheliak-dock.light-theme .sheliak-app-button:focus,
 .sheliak-dock.light-theme .sheliak-system-button:hover,
 .sheliak-dock.light-theme .sheliak-system-button:focus {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: rgba(34, 34, 38, 0.17);
 }
 
 .sheliak-app-button:active,
 .sheliak-system-button:active {
-  background-color: rgba(255, 255, 255, 0.22);
+  background-color: rgba(255, 255, 255, 0.28);
 }
 
 .sheliak-dock.light-theme .sheliak-app-button:active,
 .sheliak-dock.light-theme .sheliak-system-button:active {
-  background-color: rgba(0, 0, 0, 0.14);
+  background-color: rgba(34, 34, 38, 0.28);
 }
 
 .sheliak-running-indicator {
@@ -137,10 +137,6 @@
 
 .sheliak-menu {
   min-width: 220px;
-}
-
-.sheliak-panel-menu-icon {
-  margin-right: 4px;
 }
 
 .sheliak-panel-menu .popup-menu-content {

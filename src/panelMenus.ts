@@ -62,10 +62,14 @@ function alphabeticalCompare(a: string, b: string): number {
 }
 
 function panelLabel(text: string, iconName: string): St.BoxLayout {
-    const box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
+    const box = new St.BoxLayout({
+        style_class: 'panel-status-menu-box',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
     box.add_child(new St.Icon({
         icon_name: iconName,
-        style_class: 'system-status-icon sheliak-panel-menu-icon',
+        style_class: 'system-status-icon',
+        y_align: Clutter.ActorAlign.CENTER,
     }));
     box.add_child(new St.Label({
         text,

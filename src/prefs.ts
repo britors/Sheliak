@@ -189,7 +189,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
                 application_name: 'Sheliak',
                 application_icon: 'folder-download-symbolic',
                 developer_name: 'Lyra OS',
-                version: '1.3.1',
+                version: '1.3.2',
                 website: 'https://github.com/britors/Sheliak',
                 issue_url: 'https://github.com/britors/Sheliak/issues',
                 license_type: Gtk.License.GPL_3_0,
