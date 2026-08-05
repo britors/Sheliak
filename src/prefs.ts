@@ -162,12 +162,19 @@ export default class SheliakPreferences extends ExtensionPreferences {
             'Mostrar aplicativos instalados, organizados por categoria');
         addSwitch(panelGroup, settings, 'show-places-menu', 'Menu Locais',
             'Mostrar pastas pessoais, marcadores e dispositivos');
+        addSwitch(panelGroup, settings, 'hide-workspace-button',
+            'Ocultar botão de áreas de trabalho',
+            'Remover o botão nativo de áreas de trabalho da barra superior');
         addPanelMenuPosition(panelGroup, settings);
         panel.add(panelGroup);
 
         const panelContentGroup = new Adw.PreferencesGroup({title: 'Conteúdo dos menus'});
         addSwitch(panelContentGroup, settings, 'show-application-icons',
             'Ícones dos aplicativos', 'Mostrar o ícone ao lado do nome de cada aplicativo');
+        addSwitch(panelContentGroup, settings, 'sort-applications-menu',
+            'Ordem alfabética', 'Ordenar categorias e aplicativos alfabeticamente');
+        addSwitch(panelContentGroup, settings, 'open-application-submenus-sideways',
+            'Submenus laterais', 'Abrir as categorias de aplicativos ao lado do menu principal');
         addSwitch(panelContentGroup, settings, 'show-place-bookmarks',
             'Marcadores em Locais', 'Incluir os marcadores configurados no gerenciador de arquivos');
         addSwitch(panelContentGroup, settings, 'show-place-volumes',
@@ -182,7 +189,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
                 application_name: 'Sheliak',
                 application_icon: 'folder-download-symbolic',
                 developer_name: 'Lyra OS',
-                version: '1.2.0',
+                version: '1.3.0',
                 website: 'https://github.com/britors/Sheliak',
                 issue_url: 'https://github.com/britors/Sheliak/issues',
                 license_type: Gtk.License.GPL_3_0,
