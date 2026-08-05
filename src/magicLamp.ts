@@ -19,6 +19,7 @@ const DURATION = 380;
 const ZOOM_DURATION = 260;
 const FADE_DURATION = 200;
 const EDGE_EPSILON = 48;
+const RESTORE_SETTLE_POINT = 0.92;
 
 type AnimationMode = 'magic-lamp' | 'zoom' | 'fade' | 'none';
 
@@ -137,7 +138,13 @@ class MagicLampEffect extends Clutter.DeformEffect {
         if (!this._timeline)
             return;
 
-        this._progress = this._timeline.get_progress();
+        const timelineProgress = this._timeline.get_progress();
+        // Reach the identity deformation a few frames before notifying Mutter.
+        // This prevents a partially collapsed final frame from flashing beside
+        // the dock when the effect is detached during window restoration.
+        this._progress = this._minimizing
+            ? timelineProgress
+            : Math.min(1, timelineProgress / RESTORE_SETTLE_POINT);
         const split = 0.3;
         if (this._minimizing) {
             this._collapse = Math.min(1, this._progress / split);
