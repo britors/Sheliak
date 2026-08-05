@@ -27,6 +27,7 @@ export class AppIcon {
     readonly favorite: boolean;
     private _signals = new SignalTracker();
     private _badge: St.Label;
+    private _runningIndicator: St.Label;
 
     constructor(
         app: Shell.App,
@@ -57,6 +58,14 @@ export class AppIcon {
             y_align: Clutter.ActorAlign.START,
         });
         iconContainer.add_child(this._badge);
+        this._runningIndicator = new St.Label({
+            style_class: 'sheliak-running-indicator',
+            text: '',
+            visible: false,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.END,
+        });
+        iconContainer.add_child(this._runningIndicator);
         this.actor.set_child(iconContainer);
 
         this.menu = new AppContextMenu(this.actor, app);
@@ -100,13 +109,23 @@ export class AppIcon {
         this._signals.connect(this.actor, 'notify::mapped',
             () => this.updateIconGeometry());
         this._signals.connect(this.app, 'windows-changed',
-            () => this.updateIconGeometry());
+            () => {
+                this.setState(favorite);
+                this.updateIconGeometry();
+            });
 
         this.setState(favorite);
     }
 
     setState(favorite: boolean): void {
         const running = this.app.get_state() !== Shell.AppState.STOPPED;
+        const windowCount = this.app.get_windows()
+            .filter(window => !window.skip_taskbar).length;
+        this._runningIndicator.visible = running;
+        this._runningIndicator.text = windowCount > 1
+            ? (windowCount > 99 ? '99+' : String(windowCount))
+            : '';
+        toggleStyle(this._runningIndicator, 'multiple-windows', windowCount > 1);
         toggleStyle(this.actor, 'running', running);
         toggleStyle(this.actor, 'favorite', favorite);
         toggleStyle(this.actor, 'running-only', running && !favorite);
