@@ -35,17 +35,17 @@ type PanelPopupMenuManager = PopupMenu.PopupMenuManager & {
 };
 
 const APP_CATEGORIES = [
-    {id: 'AudioVideo', label: 'Multimídia'},
-    {id: 'Development', label: 'Desenvolvimento'},
-    {id: 'Education', label: 'Educação'},
-    {id: 'Game', label: 'Jogos'},
-    {id: 'Graphics', label: 'Gráficos'},
-    {id: 'Network', label: 'Internet'},
-    {id: 'Office', label: 'Escritório'},
-    {id: 'Science', label: 'Ciência'},
-    {id: 'Settings', label: 'Configurações'},
-    {id: 'System', label: 'Sistema'},
-    {id: 'Utility', label: 'Acessórios'},
+    {id: 'AudioVideo', label: 'Multimídia', icon: 'applications-multimedia-symbolic'},
+    {id: 'Development', label: 'Desenvolvimento', icon: 'applications-development-symbolic'},
+    {id: 'Education', label: 'Educação', icon: 'applications-education-symbolic'},
+    {id: 'Game', label: 'Jogos', icon: 'applications-games-symbolic'},
+    {id: 'Graphics', label: 'Gráficos', icon: 'applications-graphics-symbolic'},
+    {id: 'Network', label: 'Internet', icon: 'applications-internet-symbolic'},
+    {id: 'Office', label: 'Escritório', icon: 'applications-office-symbolic'},
+    {id: 'Science', label: 'Ciência', icon: 'applications-science-symbolic'},
+    {id: 'Settings', label: 'Configurações', icon: 'preferences-system-symbolic'},
+    {id: 'System', label: 'Sistema', icon: 'applications-system-symbolic'},
+    {id: 'Utility', label: 'Acessórios', icon: 'applications-utilities-symbolic'},
 ] as const;
 
 const SPECIAL_DIRECTORIES: Array<[GLib.UserDirectory, string, string]> = [
@@ -103,7 +103,7 @@ class ApplicationsIndicator {
 
     constructor(settings: Gio.Settings) {
         this._settings = settings;
-        this.button = new PanelMenu.Button(0.0, 'Aplicativos');
+        this.button = new PanelMenu.Button(0.5, 'Aplicativos');
         this.button.add_child(panelLabel('Aplicativos', 'view-app-grid-symbolic'));
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
@@ -155,7 +155,8 @@ class ApplicationsIndicator {
         const sortAlphabetically = this._settings.get_boolean('sort-applications-menu');
         const openSideways = this._settings.get_boolean(
             'open-application-submenus-sideways');
-        const categories = [...APP_CATEGORIES, {id: 'Other', label: 'Outros'}];
+        const categories = [...APP_CATEGORIES,
+            {id: 'Other', label: 'Outros', icon: 'applications-other-symbolic'}];
         if (sortAlphabetically)
             categories.sort((a, b) => alphabeticalCompare(a.label, b.label));
         let itemCount = 0;
@@ -170,7 +171,10 @@ class ApplicationsIndicator {
             }
 
             if (!openSideways) {
-                const submenu = new PopupMenu.PopupSubMenuMenuItem(category.label);
+                const submenu: PopupMenu.PopupSubMenuMenuItem & {icon?: St.Icon} =
+                    new PopupMenu.PopupSubMenuMenuItem(category.label, true);
+                if (submenu.icon)
+                    submenu.icon.icon_name = category.icon;
                 for (const appInfo of apps) {
                     submenu.menu.addMenuItem(this._applicationItem(appInfo, showIcons));
                     itemCount++;
@@ -179,9 +183,9 @@ class ApplicationsIndicator {
                 continue;
             }
 
-            const categoryItem = new PopupMenu.PopupMenuItem(category.label, {
+            const categoryItem = new PopupMenu.PopupImageMenuItem(category.label, category.icon, {
                 activate: false,
-            });
+            } as PopupMenu.PopupImageMenuItem.ConstructorProps);
             categoryItem.add_child(PopupMenu.arrowIcon(St.Side.RIGHT));
             const categoryMenu = this._createCategoryMenu(categoryItem);
             for (const appInfo of apps) {
@@ -273,7 +277,7 @@ class PlacesIndicator {
 
     constructor(settings: Gio.Settings) {
         this._settings = settings;
-        this.button = new PanelMenu.Button(0.0, 'Locais');
+        this.button = new PanelMenu.Button(0.5, 'Locais');
         this.button.add_child(panelLabel('Locais', 'folder-symbolic'));
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
