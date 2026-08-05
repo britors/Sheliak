@@ -13,10 +13,10 @@ Barra superior das preferências. A mesma página permite ocultar o botão nativ
 de áreas de trabalho, ordenar categorias e aplicativos alfabeticamente e abrir
 os submenus de categorias lateralmente.
 
-Ao minimizar ou restaurar uma janela, o Sheliak oferece animações de lâmpada
-mágica, zoom ao ícone e desvanecimento, além da opção sem animação. Os efeitos
-que usam o item correspondente no dock como destino acompanham o dock nas
-bordas inferior, superior, esquerda e direita.
+Ao minimizar ou restaurar uma janela, o Sheliak oferece animações de zoom ao
+ícone e desvanecimento, além da opção sem animação. Os efeitos que usam o item
+correspondente no dock como destino acompanham o dock nas bordas inferior,
+superior, esquerda e direita.
 
 As configurações podem ser abertas pelo gerenciador de extensões do GNOME e
 incluem posição, tamanho dos ícones, margem, animações do dock e das janelas e

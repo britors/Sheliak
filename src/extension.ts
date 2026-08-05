@@ -5,7 +5,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Dock} from './dock.js';
-import {WindowAnimationManager} from './magicLamp.js';
+import {WindowAnimationManager} from './windowAnimations.js';
 import {PanelMenus} from './panelMenus.js';
 
 type PanelActor = {

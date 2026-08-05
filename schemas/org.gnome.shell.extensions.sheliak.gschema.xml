@@ -8,7 +8,7 @@
     <key name="icon-size" type="u"><default>40</default><summary>Application icon size</summary></key>
     <key name="edge-margin" type="u"><default>8</default><summary>Distance from the screen edge</summary></key>
     <key name="animation" type="b"><default>true</default><summary>Animate dock visibility</summary></key>
-    <key name="minimize-animation" type="s"><default>'magic-lamp'</default><summary>Window minimize and restore animation: magic-lamp, zoom, fade, or none</summary></key>
+    <key name="minimize-animation" type="s"><default>'zoom'</default><summary>Window minimize and restore animation: zoom, fade, or none</summary></key>
     <key name="extend-to-edges" type="b"><default>false</default><summary>Stretch the dock across the full length of its edge</summary></key>
     <key name="content-alignment" type="s"><default>'center'</default><summary>Alignment of favorites, running apps, and trash along the dock: start, center, or end</summary></key>
     <key name="show-running" type="b"><default>true</default><summary>Show running applications</summary></key>

@@ -32,7 +32,6 @@ function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Setting
         subtitle: 'Efeito usado ao minimizar e restaurar janelas',
     });
     const values = [
-        ['magic-lamp', 'Lâmpada mágica'],
         ['zoom', 'Zoom ao ícone'],
         ['fade', 'Desvanecer'],
         ['none', 'Sem animação'],
@@ -43,7 +42,7 @@ function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Setting
         values.findIndex(([id]) => id === settings.get_string('minimize-animation')));
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string(
-        'minimize-animation', values[combo.selected]?.[0] ?? 'magic-lamp'));
+        'minimize-animation', values[combo.selected]?.[0] ?? 'zoom'));
     settings.connect('changed::minimize-animation', () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
@@ -189,7 +188,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
                 application_name: 'Sheliak',
                 application_icon: 'folder-download-symbolic',
                 developer_name: 'Lyra OS',
-                version: '1.3.2',
+                version: '1.3.3',
                 website: 'https://github.com/britors/Sheliak',
                 issue_url: 'https://github.com/britors/Sheliak/issues',
                 license_type: Gtk.License.GPL_3_0,
