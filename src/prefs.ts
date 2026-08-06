@@ -164,7 +164,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
         addSwitch(panelGroup, settings, 'show-system-menu', 'Menu Sistema',
             'Mostrar atalhos para as configurações do Vega e a tela Sobre');
         addSwitch(panelGroup, settings, 'show-search-menu', 'Menu Busca',
-            'Mostrar o ícone de busca de aplicativos e configurações');
+            'Mostrar a caixa de busca de aplicativos e configurações');
         addSwitch(panelGroup, settings, 'hide-workspace-button',
             'Ocultar botão de áreas de trabalho',
             'Remover o botão nativo de áreas de trabalho da barra superior');

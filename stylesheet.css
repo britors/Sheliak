@@ -156,7 +156,46 @@
   background-color: rgba(0, 0, 0, 0.12);
 }
 
+/*
+ * A caixa de busca herda cor/estado de StEntry.search-entry do tema do
+ * sistema (já correto em claro/escuro); só ajustamos forma e tamanho para
+ * caber like um pill compacto na barra superior.
+ */
+#panel .sheliak-search-button.panel-button {
+  padding: 0 4px;
+}
+
+#panel .sheliak-search-button.panel-button:hover,
+#panel .sheliak-search-button.panel-button:focus,
+#panel .sheliak-search-button.panel-button:active,
+#panel .sheliak-search-button.panel-button:checked {
+  box-shadow: none;
+  background-color: transparent;
+}
+
+/* Mantenha em sincronia com o min-width de .sheliak-search-results abaixo,
+ * para o dropdown de resultados ficar com as bordas alinhadas ao campo. */
 .sheliak-search-entry {
-  width: 220px;
-  margin-left: 6px;
+  width: 280px;
+  height: 1.6em;
+  min-height: 0;
+  margin: 0;
+  padding: 0 12px 0 6px;
+  font-size: 0.95em;
+  border-radius: 999px;
+}
+
+.sheliak-search-entry .search-entry-icon {
+  icon-size: 1em;
+}
+
+/* Sem seta e sem vão: o dropdown fica colado direto abaixo do campo,
+ * em vez de flutuar deslocado como um popup-menu comum. */
+.sheliak-search-results {
+  -arrow-rise: 0px;
+  -boxpointer-gap: 0px;
+}
+
+.sheliak-search-results .popup-menu-content {
+  min-width: 280px;
 }

@@ -3,13 +3,19 @@ import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import Tracker from 'gi://Tracker';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {GrabHelper} from 'resource:///org/gnome/shell/ui/grabHelper.js';
 
 import {SignalTracker} from './signals.js';
+
+Gio._promisify(Tracker.SparqlConnection.prototype, 'query_async', 'query_finish');
+Gio._promisify(Tracker.SparqlCursor.prototype, 'next_async', 'next_finish');
+
+const FILE_SEARCH_SERVICE = 'org.freedesktop.Tracker3.Miner.Files';
+const FILE_SEARCH_LIMIT = 5;
 
 type ApplicationInfo = {
     get_id: () => string | null;
@@ -112,7 +118,12 @@ class ApplicationsIndicator {
     private _signals = new SignalTracker();
     private _categoryMenus: PopupMenu.PopupMenu[] = [];
     private _openCategoryMenu: PopupMenu.PopupMenu | null = null;
-    private _grabHelper: GrabHelper;
+    // Submenus flutuantes próprios, fora da árvore de button.menu, precisam
+    // de seu próprio grab modal para receber eventos de ponteiro (incluindo
+    // o realce ao passar o mouse). Um PopupMenuManager dedicado — em vez do
+    // Main.panel.menuManager compartilhado — evita fechar o menu pai sempre
+    // que uma categoria abre.
+    private _categoryMenuManager: PopupMenu.PopupMenuManager;
     private _icon: St.Icon;
     // See showAppsButton.ts: St.Icon's `gicon` type comes from a separately
     // versioned nested @girs/gio-2.0 package, structurally incompatible with
@@ -126,7 +137,7 @@ class ApplicationsIndicator {
         this.button = new PanelMenu.Button(0.5, 'Aplicativos');
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
-        this._grabHelper = new GrabHelper(this.button);
+        this._categoryMenuManager = new PopupMenu.PopupMenuManager(this.button);
 
         if (extensionPath) {
             this._darkIcon = Gio.icon_new_for_string(GLib.build_filenamev(
@@ -244,6 +255,12 @@ class ApplicationsIndicator {
             const categoryItem = new PopupMenu.PopupImageMenuItem(category.label, category.icon, {
                 activate: false,
             } as PopupMenu.PopupImageMenuItem.ConstructorProps);
+            // Um expansor entre o rótulo e a seta empurra a seta até a borda
+            // direita do item, em vez de deixá-la colada ao texto.
+            categoryItem.add_child(new St.Bin({
+                style_class: 'popup-menu-item-expander',
+                x_expand: true,
+            }));
             categoryItem.add_child(PopupMenu.arrowIcon(St.Side.RIGHT));
             const categoryMenu = this._createCategoryMenu(categoryItem);
             for (const appInfo of apps) {
@@ -254,6 +271,13 @@ class ApplicationsIndicator {
                 if (categoryItem.active)
                     this._openCategory(categoryMenu);
             });
+            // Se o ponteiro sai da linha da categoria sem entrar no flyout
+            // (ou vice-versa), o submenu deve fechar em vez de ficar
+            // flutuando sem nenhum item em destaque.
+            categoryItem.connect('leave-event', (_actor: St.Widget, event: Clutter.Event) =>
+                this._onCategoryLeave(categoryMenu, event));
+            categoryMenu.actor.connect('leave-event', (_actor: Clutter.Actor, event: Clutter.Event) =>
+                this._onCategoryLeave(categoryMenu, event));
             menu.addMenuItem(categoryItem);
         }
 
@@ -285,6 +309,7 @@ class ApplicationsIndicator {
         menu.actor.add_style_class_name('sheliak-panel-menu');
         Main.uiGroup.add_child(menu.actor);
         menu.actor.hide();
+        this._categoryMenuManager.addMenu(menu);
         this._categoryMenus.push(menu);
         return menu;
     }
@@ -292,35 +317,34 @@ class ApplicationsIndicator {
     private _openCategory(menu: PopupMenu.PopupMenu): void {
         if (this._openCategoryMenu === menu)
             return;
-        this._closeCategoryMenus();
-        // O menu principal já mantém um grab modal próprio; sem estender
-        // esse grab para o submenu flutuante, seus itens nunca recebem
-        // eventos de ponteiro e não realçam ao passar o mouse.
-        const grabbed = this._grabHelper.grab({
-            actor: menu.actor,
-            onUngrab: () => {
-                menu.close();
-                if (this._openCategoryMenu === menu)
-                    this._openCategoryMenu = null;
-            },
-        });
-        if (!grabbed)
-            return;
+        this._openCategoryMenu?.close();
         this._openCategoryMenu = menu;
         menu.open();
     }
 
+    private _onCategoryLeave(menu: PopupMenu.PopupMenu, event: Clutter.Event): boolean {
+        if (this._openCategoryMenu !== menu)
+            return Clutter.EVENT_PROPAGATE;
+        const related = event.get_related();
+        const stayedOnTrigger = related && menu.sourceActor.contains(related);
+        const stayedOnMenu = related && menu.actor.contains(related);
+        if (!stayedOnTrigger && !stayedOnMenu)
+            this._closeCategoryMenus();
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     private _closeCategoryMenus(): void {
-        if (this._openCategoryMenu)
-            this._grabHelper.ungrab({actor: this._openCategoryMenu.actor});
         for (const menu of this._categoryMenus)
             menu.close();
+        this._openCategoryMenu = null;
     }
 
     private _destroyCategoryMenus(): void {
         this._closeCategoryMenus();
-        for (const menu of this._categoryMenus.splice(0))
+        for (const menu of this._categoryMenus.splice(0)) {
+            this._categoryMenuManager.removeMenu(menu);
             menu.destroy();
+        }
     }
 
 }
@@ -560,38 +584,37 @@ class SearchIndicator {
     private _index: SearchItem[] = [];
     private _topResult: SearchItem | null = null;
     private _stageClickId = 0;
+    private _fileConnection: Tracker.SparqlConnection | null | undefined;
 
     constructor() {
         this.button = new PanelMenu.Button(0.5, 'Buscar', true);
-
-        const box = new St.BoxLayout({
-            style_class: 'panel-status-menu-box',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        const iconButton = new St.Button({
-            style_class: 'system-status-icon',
-            child: new St.Icon({icon_name: 'edit-find-symbolic', y_align: Clutter.ActorAlign.CENTER}),
-            can_focus: true,
-            track_hover: true,
-        });
-        this._signals.connect(iconButton, 'clicked', () => this._toggleSearch());
-        box.add_child(iconButton);
+        this.button.add_style_class_name('sheliak-search-button');
 
         this._entry = new St.Entry({
             style_class: 'search-entry sheliak-search-entry',
-            hint_text: 'Buscar aplicativos e configurações…',
+            hint_text: 'Buscar…',
             can_focus: true,
-            visible: false,
             y_align: Clutter.ActorAlign.CENTER,
+            primary_icon: new St.Icon({
+                style_class: 'search-entry-icon',
+                icon_name: 'edit-find-symbolic',
+            }),
         });
-        box.add_child(this._entry);
-        this.button.add_child(box);
+        this.button.add_child(this._entry);
 
-        // Sem grab modal: o campo permanece fora do popup de resultados, e um
-        // grab restringiria os eventos de teclado ao popup, bloqueando a
-        // digitação. O fechamento ao clicar fora é feito manualmente.
+        // Sem grab modal: o campo faz parte do botão do painel, e um grab
+        // restringiria os eventos de teclado ao popup de resultados,
+        // bloqueando a digitação. O fechamento ao clicar fora é manual.
+        // O BoxPointer posiciona o popup a partir do CENTRO da caixa de
+        // conteúdo da origem (não da borda), então arrowAlignment sozinho
+        // nunca alinha bordas — setSourceAlignment(0.0) muda a referência
+        // para a borda esquerda da origem, fazendo o popup nascer alinhado
+        // ao início do campo de busca, independentemente da largura do
+        // resultado.
         this._resultsMenu = new PopupMenu.PopupMenu(this._entry, 0.0, St.Side.TOP);
+        this._resultsMenu.setSourceAlignment(0.0);
         this._resultsMenu.actor.add_style_class_name('sheliak-panel-menu');
+        this._resultsMenu.actor.add_style_class_name('sheliak-search-results');
         Main.uiGroup.add_child(this._resultsMenu.actor);
         this._resultsMenu.actor.hide();
 
@@ -608,26 +631,16 @@ class SearchIndicator {
         this._disconnectStageClick();
         this._resultsMenu.destroy();
         this.button.destroy();
+        try {
+            this._fileConnection?.close();
+        } catch (error) {
+            console.debug(`Sheliak: falha ao fechar a conexão de busca de arquivos: ${error}`);
+        }
     }
 
-    private _toggleSearch(): void {
-        if (this._entry.visible)
-            this._closeSearch();
-        else
-            this._openSearch();
-    }
-
-    private _openSearch(): void {
-        this._entry.visible = true;
-        this._entry.set_text('');
-        this._entry.clutter_text.grab_key_focus();
-        this._connectStageClick();
-    }
-
-    private _closeSearch(): void {
+    private _clearSearch(): void {
         this._resultsMenu.close();
         this._entry.set_text('');
-        this._entry.visible = false;
         this._disconnectStageClick();
     }
 
@@ -650,20 +663,20 @@ class SearchIndicator {
         const withinButton = target && this.button.contains(target);
         const withinResults = target && this._resultsMenu.actor.contains(target);
         if (!withinButton && !withinResults)
-            this._closeSearch();
+            this._clearSearch();
         return Clutter.EVENT_PROPAGATE;
     }
 
     private _onEntryKeyPress(event: Clutter.Event): boolean {
         const symbol = event.get_key_symbol();
         if (symbol === Clutter.KEY_Escape) {
-            this._closeSearch();
+            this._clearSearch();
             return Clutter.EVENT_STOP;
         }
         if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter) {
             if (this._topResult) {
                 const item = this._topResult;
-                this._closeSearch();
+                this._clearSearch();
                 item.activate();
             }
             return Clutter.EVENT_STOP;
@@ -673,14 +686,34 @@ class SearchIndicator {
 
     private _updateResults(): void {
         const query = this._entry.get_text().trim().toLowerCase();
-        this._resultsMenu.removeAll();
-        this._topResult = null;
 
         if (!query) {
             this._resultsMenu.close();
+            this._resultsMenu.removeAll();
+            this._topResult = null;
+            this._disconnectStageClick();
             return;
         }
 
+        // Mostra os apps na hora (busca em memória) e completa com os
+        // arquivos assim que a consulta ao Tracker retornar, sem travar a
+        // digitação. Se o texto já mudou quando a resposta chegar, o
+        // resultado obsoleto é descartado.
+        const appMatches = this._matchIndex(query);
+        this._renderMatches(appMatches.slice(0, 8));
+
+        this._searchFiles(query).then(fileMatches => {
+            if (fileMatches.length === 0)
+                return;
+            if (this._entry.get_text().trim().toLowerCase() !== query)
+                return;
+            this._renderMatches([...appMatches, ...fileMatches].slice(0, 8));
+        }).catch((error: unknown) => {
+            console.debug(`Sheliak: busca de arquivos falhou: ${error}`);
+        });
+    }
+
+    private _matchIndex(query: string): SearchItem[] {
         const starts: SearchItem[] = [];
         const contains: SearchItem[] = [];
         for (const item of this._index) {
@@ -689,7 +722,11 @@ class SearchIndicator {
             else if (item.keywords.includes(query))
                 contains.push(item);
         }
-        const matches = [...starts, ...contains].slice(0, 8);
+        return [...starts, ...contains];
+    }
+
+    private _renderMatches(matches: SearchItem[]): void {
+        this._resultsMenu.removeAll();
         this._topResult = matches[0] ?? null;
 
         if (matches.length === 0) {
@@ -699,7 +736,7 @@ class SearchIndicator {
             for (const item of matches) {
                 const menuItem = new PopupMenu.PopupImageMenuItem(item.name, item.icon);
                 menuItem.connect('activate', () => {
-                    this._closeSearch();
+                    this._clearSearch();
                     item.activate();
                 });
                 this._resultsMenu.addMenuItem(menuItem);
@@ -708,6 +745,70 @@ class SearchIndicator {
 
         if (!this._resultsMenu.isOpen)
             this._resultsMenu.open();
+        this._connectStageClick();
+    }
+
+    private _getFileConnection(): Tracker.SparqlConnection | null {
+        if (this._fileConnection !== undefined)
+            return this._fileConnection;
+        try {
+            this._fileConnection = Tracker.SparqlConnection.bus_new(
+                FILE_SEARCH_SERVICE, null, null);
+        } catch (error) {
+            console.debug(`Sheliak: indexador de arquivos indisponível: ${error}`);
+            this._fileConnection = null;
+        }
+        return this._fileConnection;
+    }
+
+    private async _searchFiles(query: string): Promise<SearchItem[]> {
+        const connection = this._getFileConnection();
+        if (!connection)
+            return [];
+
+        // BIND evita que o Tracker reavalie as funções de propriedade (que
+        // produziriam linhas duplicadas por arquivo); DISTINCT é uma segunda
+        // rede de segurança contra isso.
+        const escaped = query.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const sparql = `
+            SELECT DISTINCT ?url ?name WHERE {
+              ?file a nfo:FileDataObject ;
+                    nie:url ?url .
+              BIND(nfo:fileName(?file) AS ?name)
+              FILTER(CONTAINS(LCASE(?name), "${escaped}"))
+            } ORDER BY DESC(nfo:fileLastModified(?file)) LIMIT ${FILE_SEARCH_LIMIT}
+        `;
+
+        const cursor = await connection.query_async(sparql, null);
+        const results: SearchItem[] = [];
+        try {
+            while (await cursor.next_async(null)) {
+                const url = cursor.get_string(0)[0];
+                const name = cursor.get_string(1)[0];
+                results.push({
+                    name,
+                    icon: this._fileIcon(url),
+                    keywords: name.toLowerCase(),
+                    activate: () => openUri(url),
+                });
+            }
+        } finally {
+            cursor.close();
+        }
+        return results;
+    }
+
+    private _fileIcon(url: string): Gio.Icon | string {
+        // nie:mimeType não é preenchido de forma confiável pelo Tracker
+        // (fica null tanto para pastas quanto para vários arquivos comuns);
+        // consultar o próprio GIO dá o ícone correto, igual ao Nautilus.
+        try {
+            const info = Gio.File.new_for_uri(url).query_info(
+                'standard::icon', Gio.FileQueryInfoFlags.NONE, null);
+            return info.get_icon() ?? 'text-x-generic-symbolic';
+        } catch {
+            return 'text-x-generic-symbolic';
+        }
     }
 
     private _rebuildIndex(): void {

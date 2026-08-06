@@ -3,6 +3,6 @@
   "name": "Sheliak",
   "description": "Dock nativo do ecossistema Lyra para o GNOME Shell",
   "shell-version": ["48"],
-  "version": 10,
+  "version": 11,
   "url": "https://github.com/britors/Sheliak"
 }
