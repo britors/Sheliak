@@ -41,12 +41,12 @@ type SearchItem = {
 
 const APP_CATEGORIES = [
     {id: 'AudioVideo', label: 'Multimídia', icon: 'applications-multimedia-symbolic'},
-    {id: 'Development', label: 'Desenvolvimento', icon: 'applications-development-symbolic'},
-    {id: 'Education', label: 'Educação', icon: 'applications-education-symbolic'},
+    {id: 'Development', label: 'Desenvolvimento', icon: 'applications-engineering-symbolic'},
+    {id: 'Education', label: 'Educação', icon: 'accessories-dictionary-symbolic'},
     {id: 'Game', label: 'Jogos', icon: 'applications-games-symbolic'},
     {id: 'Graphics', label: 'Gráficos', icon: 'applications-graphics-symbolic'},
     {id: 'Network', label: 'Internet', icon: 'web-browser-symbolic'},
-    {id: 'Office', label: 'Escritório', icon: 'applications-office-symbolic'},
+    {id: 'Office', label: 'Escritório', icon: 'x-office-document-symbolic'},
     {id: 'Science', label: 'Ciência', icon: 'applications-science-symbolic'},
     {id: 'Settings', label: 'Configurações', icon: 'preferences-system-symbolic'},
     {id: 'System', label: 'Sistema', icon: 'applications-system-symbolic'},
