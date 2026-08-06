@@ -2,7 +2,7 @@
 
 Sheliak é o dock do Lyra OS para o GNOME Shell. A versão 1 oferece favoritos,
 aplicativos em execução, menus por aplicativo, lixeira dinâmica e acesso à
-grade nativa de aplicativos. O dock fica centralizado na borda inferior e usa
+grade nativa de aplicativos. O dock fica centralizado na borda esquerda e usa
 ocultação inteligente quando uma janela ocupa sua área.
 
 A extensão também oferece menus opcionais de **Aplicativos** e **Locais** na
@@ -16,7 +16,7 @@ os submenus de categorias lateralmente.
 Ao minimizar ou restaurar uma janela, o Sheliak oferece animações de zoom ao
 ícone e desvanecimento, além da opção sem animação. Os efeitos que usam o item
 correspondente no dock como destino acompanham o dock nas bordas inferior,
-superior, esquerda e direita.
+esquerda e direita.
 
 As configurações podem ser abertas pelo gerenciador de extensões do GNOME e
 incluem posição, tamanho dos ícones, margem, animações do dock e das janelas e

@@ -50,12 +50,12 @@ function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Setting
 
 function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
     const row = new Adw.ActionRow({title: 'Posição', subtitle: 'Lado da tela onde o dock aparece'});
-    const values = [['bottom', 'Inferior'], ['top', 'Superior'], ['left', 'Esquerda'], ['right', 'Direita']];
+    const values = [['left', 'Esquerda'], ['bottom', 'Inferior'], ['right', 'Direita']];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('position')));
     combo.selected = selected();
-    combo.connect('notify::selected', () => settings.set_string('position', values[combo.selected]?.[0] ?? 'bottom'));
+    combo.connect('notify::selected', () => settings.set_string('position', values[combo.selected]?.[0] ?? 'left'));
     settings.connect('changed::position', () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);

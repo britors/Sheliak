@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.sheliak" path="/org/gnome/shell/extensions/sheliak/">
-    <key name="position" type="s"><default>'bottom'</default><summary>Dock position</summary></key>
+    <key name="position" type="s"><default>'left'</default><summary>Dock position</summary></key>
     <key name="hide-mode" type="s"><default>'intelligent'</default><summary>Dock visibility mode: intelligent, autohide, or always visible</summary></key>
     <key name="autohide" type="b"><default>true</default><summary>Legacy auto-hide setting</summary></key>
     <key name="hide-delay" type="u"><default>400</default><summary>Intelligent-hide delay in milliseconds</summary></key>
