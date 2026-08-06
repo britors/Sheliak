@@ -135,6 +135,7 @@ class ApplicationsIndicator {
     constructor(settings: Gio.Settings, extensionPath?: string) {
         this._settings = settings;
         this.button = new PanelMenu.Button(0.5, 'Aplicativos');
+        this.button.add_style_class_name('sheliak-panel-indicator');
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
         this._categoryMenuManager = new PopupMenu.PopupMenuManager(this.button);
@@ -364,6 +365,7 @@ class PlacesIndicator {
     constructor(settings: Gio.Settings) {
         this._settings = settings;
         this.button = new PanelMenu.Button(0.5, 'Locais');
+        this.button.add_style_class_name('sheliak-panel-indicator');
         this.button.add_child(panelLabel('Locais', 'folder-symbolic'));
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
@@ -531,6 +533,7 @@ class SystemIndicator {
     constructor(settings: Gio.Settings) {
         this._settings = settings;
         this.button = new PanelMenu.Button(0.5, 'Sistema');
+        this.button.add_style_class_name('sheliak-panel-indicator');
         this.button.add_child(panelLabel('Sistema', 'preferences-system-symbolic'));
         const menu = this.button.menu as PopupMenu.PopupMenu;
         menu.actor.add_style_class_name('sheliak-panel-menu');
@@ -594,6 +597,7 @@ class SearchIndicator {
 
     constructor() {
         this.button = new PanelMenu.Button(0.5, 'Buscar', true);
+        this.button.add_style_class_name('sheliak-panel-indicator');
         this.button.add_style_class_name('sheliak-search-button');
 
         this._entry = new St.Entry({

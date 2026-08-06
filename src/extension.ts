@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Dock} from './dock.js';
 import {WindowAnimationManager} from './windowAnimations.js';
 import {PanelMenus} from './panelMenus.js';
+import {TopBarManager} from './topBar.js';
 
 type PanelActor = {
     visible: boolean;
@@ -18,6 +19,7 @@ export default class SheliakExtension extends Extension {
     private _dock: Dock | null = null;
     private _windowAnimations: WindowAnimationManager | null = null;
     private _panelMenus: PanelMenus | null = null;
+    private _topBar: TopBarManager | null = null;
     private _settings: Gio.Settings | null = null;
     private _hideWorkspaceButtonSignal = 0;
     private _dashWasVisible = true;
@@ -30,6 +32,7 @@ export default class SheliakExtension extends Extension {
         this._dock = new Dock(this._settings, this.path);
         this._windowAnimations = new WindowAnimationManager(this._settings);
         this._panelMenus = new PanelMenus(this._settings, this.path);
+        this._topBar = new TopBarManager(this._settings);
         // Sheliak substitui o dash padrão; mantê-lo visível duplicaria os
         // favoritos/apps em execução na Overview.
         this._dashWasVisible = Main.overview.dash.visible;
@@ -58,6 +61,8 @@ export default class SheliakExtension extends Extension {
             this._activitiesButton?.show();
         this._activitiesButton = null;
         this._activitiesButtonWasVisible = false;
+        this._topBar?.destroy();
+        this._topBar = null;
         this._panelMenus?.destroy();
         this._panelMenus = null;
         this._windowAnimations?.destroy();

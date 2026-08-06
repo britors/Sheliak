@@ -16,6 +16,9 @@
     <key name="show-trash" type="b"><default>true</default><summary>Show the trash button</summary></key>
     <key name="show-apps-button" type="b"><default>true</default><summary>Show the applications button</summary></key>
     <key name="fullscreen-hide" type="b"><default>true</default><summary>Hide in fullscreen</summary></key>
+    <key name="panel-height" type="u"><default>32</default><summary>Top panel height in pixels</summary></key>
+    <key name="show-clock" type="b"><default>true</default><summary>Show the clock in the top panel</summary></key>
+    <key name="show-panel-indicators" type="b"><default>true</default><summary>Show native GNOME indicators on the right side of the top panel</summary></key>
     <key name="show-applications-menu" type="b"><default>true</default><summary>Show the applications menu in the top panel</summary></key>
     <key name="show-places-menu" type="b"><default>true</default><summary>Show the places menu in the top panel</summary></key>
     <key name="show-system-menu" type="b"><default>true</default><summary>Show the system menu in the top panel</summary></key>

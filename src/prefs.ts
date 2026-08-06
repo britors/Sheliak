@@ -156,6 +156,15 @@ export default class SheliakPreferences extends ExtensionPreferences {
             title: 'Barra superior',
             icon_name: 'view-more-symbolic',
         });
+        const topBarGroup = new Adw.PreferencesGroup({title: 'Barra superior'});
+        addSpin(topBarGroup, settings, 'panel-height', 'Tamanho',
+            'Altura da barra em pixels', 24, 64, 1);
+        addSwitch(topBarGroup, settings, 'show-clock', 'Relógio',
+            'Mostrar data e hora no centro da barra');
+        addSwitch(topBarGroup, settings, 'show-panel-indicators', 'Itens da direita',
+            'Mostrar os indicadores nativos do GNOME');
+        panel.add(topBarGroup);
+
         const panelGroup = new Adw.PreferencesGroup({title: 'Menus do painel'});
         addSwitch(panelGroup, settings, 'show-applications-menu', 'Menu Aplicativos',
             'Mostrar aplicativos instalados, organizados por categoria');
@@ -208,7 +217,7 @@ function showAboutDialog(window: Adw.PreferencesWindow): void {
         application_name: 'Sheliak',
         application_icon: 'folder-download-symbolic',
         developer_name: 'Lyra OS',
-        version: '1.4.2',
+        version: '1.6.0',
         website: 'https://github.com/britors/Sheliak',
         issue_url: 'https://github.com/britors/Sheliak/issues',
         license_type: Gtk.License.GPL_3_0,
