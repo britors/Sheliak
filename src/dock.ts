@@ -461,13 +461,20 @@ export class Dock {
         const margin = this._settings.get_uint('edge-margin');
         const extend = this._settings.get_boolean('extend-to-edges');
         const horizontal = position === 'top' || position === 'bottom';
+        // Docas laterais compartilham o monitor primário com a topbar; sem
+        // descontar a altura dela do espaço vertical disponível, "estender
+        // até as bordas" (ou o alinhamento "start") empurra a doca por baixo
+        // da topbar em vez de encostar logo abaixo.
+        const panelHeight = horizontal ? 0 : Main.panel.height;
+        const verticalY = monitor.y + panelHeight;
+        const verticalHeight = monitor.height - panelHeight;
         const [naturalWidth, naturalHeight] = this._naturalDockSize(horizontal);
         const width = horizontal
             ? (extend ? Math.max(1, monitor.width - margin * 2) : Math.min(naturalWidth, Math.max(1, monitor.width - margin * 2)))
             : naturalWidth;
         const height = horizontal
             ? naturalHeight
-            : (extend ? Math.max(1, monitor.height - margin * 2) : Math.min(naturalHeight, Math.max(1, monitor.height - margin * 2)));
+            : (extend ? Math.max(1, verticalHeight - margin * 2) : Math.min(naturalHeight, Math.max(1, verticalHeight - margin * 2)));
 
         let x = this._alignedOffset(monitor.x, monitor.width, width, margin);
         let y = monitor.y + monitor.height - margin - height;
@@ -475,10 +482,10 @@ export class Dock {
             y = monitor.y + margin;
         } else if (position === 'left') {
             x = monitor.x + margin;
-            y = this._alignedOffset(monitor.y, monitor.height, height, margin);
+            y = this._alignedOffset(verticalY, verticalHeight, height, margin);
         } else if (position === 'right') {
             x = monitor.x + monitor.width - margin - width;
-            y = this._alignedOffset(monitor.y, monitor.height, height, margin);
+            y = this._alignedOffset(verticalY, verticalHeight, height, margin);
         }
 
         return [x, y, width, height];

@@ -143,6 +143,12 @@
   background-color: rgba(127, 127, 127, 0.28);
 }
 
+/* -boxpointer-gap padrão do tema é 0px, então o flyout de categoria fica
+ * colado (às vezes sobreposto) à borda do menu principal; afasta um pouco. */
+.sheliak-category-menu {
+  -boxpointer-gap: 8px;
+}
+
 .sheliak-app-button.dragging {
   opacity: 0.4;
 }

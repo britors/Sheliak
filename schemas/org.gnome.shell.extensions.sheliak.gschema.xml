@@ -25,7 +25,7 @@
     <key name="panel-menu-position" type="s"><default>'left'</default><summary>Top panel box for the applications and places menus: left, center, or right</summary></key>
     <key name="show-application-icons" type="b"><default>true</default><summary>Show application icons in the applications menu</summary></key>
     <key name="sort-applications-menu" type="b"><default>true</default><summary>Sort application categories and entries alphabetically</summary></key>
-    <key name="open-application-submenus-sideways" type="b"><default>true</default><summary>Open application category submenus sideways</summary></key>
+    <key name="open-application-submenus-sideways" type="b"><default>false</default><summary>Open application category submenus sideways</summary></key>
     <key name="show-place-bookmarks" type="b"><default>true</default><summary>Show file manager bookmarks in the places menu</summary></key>
     <key name="show-place-volumes" type="b"><default>true</default><summary>Show mounted volumes in the places menu</summary></key>
   </schema>

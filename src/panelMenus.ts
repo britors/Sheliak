@@ -306,7 +306,13 @@ class ApplicationsIndicator {
         // A seta fica na borda esquerda do pop-up, fazendo-o abrir à direita
         // do item. O BoxPointer troca o lado automaticamente se faltar espaço.
         const menu = new PopupMenu.PopupMenu(source, 0.0, St.Side.LEFT);
+        // O BoxPointer alinha pelo centro do item por padrão mesmo com
+        // arrowAlignment 0.0 (a referência é _sourceAlignment, que é 0.5);
+        // setSourceAlignment(0.0) move a referência para a borda superior
+        // do item de categoria, alinhando o topo do flyout com ele.
+        menu.setSourceAlignment(0.0);
         menu.actor.add_style_class_name('sheliak-panel-menu');
+        menu.actor.add_style_class_name('sheliak-category-menu');
         Main.uiGroup.add_child(menu.actor);
         menu.actor.hide();
         this._categoryMenuManager.addMenu(menu);
