@@ -149,6 +149,15 @@
   -boxpointer-gap: 8px;
 }
 
+.sheliak-tooltip {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background-color: rgba(20, 22, 27, 0.92);
+  color: #f2f3f5;
+  font-size: 0.9em;
+  text-align: center;
+}
+
 .sheliak-app-button.dragging {
   opacity: 0.4;
 }

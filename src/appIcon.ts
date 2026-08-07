@@ -9,6 +9,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {AppContextMenu} from './contextMenu.js';
 import {SignalTracker} from './signals.js';
+import {TooltipManager} from './tooltip.js';
 
 const DEFAULT_ICON_SIZE = 40;
 
@@ -37,6 +38,7 @@ export class AppIcon {
         onMenuStateChanged?: (open: boolean) => void,
         iconSize = DEFAULT_ICON_SIZE,
         onDragEnd?: () => void,
+        tooltip?: TooltipManager,
     ) {
         this.app = app;
         this.favorite = favorite;
@@ -111,6 +113,21 @@ export class AppIcon {
                 }
                 return Clutter.EVENT_PROPAGATE;
             });
+
+        if (tooltip) {
+            this._signals.connect(this.actor, 'enter-event', () => {
+                tooltip.show(this.actor, app.get_name());
+                return Clutter.EVENT_PROPAGATE;
+            });
+            this._signals.connect(this.actor, 'leave-event', () => {
+                tooltip.hide();
+                return Clutter.EVENT_PROPAGATE;
+            });
+            this._signals.connect(this.actor, 'button-press-event', () => {
+                tooltip.hide();
+                return Clutter.EVENT_PROPAGATE;
+            });
+        }
 
         if (favorite) {
             (this.actor as unknown as {_delegate?: unknown})._delegate = this;

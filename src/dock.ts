@@ -14,6 +14,7 @@ import {AppIcon} from './appIcon.js';
 import {LauncherEntryTracker} from './launcherEntries.js';
 import {ShowAppsButton} from './showAppsButton.js';
 import {SignalTracker} from './signals.js';
+import {DockSide, TooltipManager} from './tooltip.js';
 import {TrashIcon} from './trashIcon.js';
 
 const TRIGGER_HEIGHT = 2;
@@ -32,6 +33,7 @@ export class Dock {
     private _signals = new SignalTracker();
     private _trash: TrashIcon;
     private _showApps: ShowAppsButton;
+    private _tooltip: TooltipManager;
     private _launcherEntries: LauncherEntryTracker;
     private _interfaceSettings: Gio.Settings;
     private _userThemeSettings: Gio.Settings | null = null;
@@ -90,6 +92,8 @@ export class Dock {
         this.actor.add_child(this._showApps.actor);
 
         this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
+        this._tooltip = new TooltipManager(
+            () => this._settings.get_string('position') as DockSide);
         this._launcherEntries = new LauncherEntryTracker(
             (desktopId, count) => this._onLauncherEntryChanged(desktopId, count));
         this._interfaceSettings = new Gio.Settings({
@@ -219,6 +223,7 @@ export class Dock {
             icon.destroy();
         this._trash.destroy();
         this._showApps.destroy();
+        this._tooltip.destroy();
         Main.layoutManager.removeChrome(this.actor);
         Main.layoutManager.removeChrome(this._revealTrigger);
         this.actor.destroy();
@@ -244,7 +249,8 @@ export class Dock {
                 app, this._menuManager, favoriteIds.has(app.get_id()),
                 open => this._onMenuStateChanged(open),
                 this._settings.get_uint('icon-size'),
-                () => this._clearDragPlaceholder());
+                () => this._clearDragPlaceholder(),
+                this._tooltip);
             icon.setBadge(this._launcherEntries.countFor(icon.appId));
             this._icons.push(icon);
             this._appsBox.add_child(icon.actor);
