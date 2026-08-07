@@ -22,12 +22,15 @@ export default class SheliakExtension extends Extension {
     private _topBar: TopBarManager | null = null;
     private _settings: Gio.Settings | null = null;
     private _hideWorkspaceButtonSignal = 0;
+    private _startupCompleteSignal = 0;
+    private _sessionHadOverview: boolean | null = null;
     private _dashWasVisible = true;
     private _activitiesButton: PanelActor | null = null;
     private _activitiesButtonWasVisible = false;
 
     enable(): void {
         console.debug(`Sheliak: enable() em ${this.uuid}`);
+        this._prepareDesktopStartup();
         this._settings = this.getSettings('org.gnome.shell.extensions.sheliak');
         this._dock = new Dock(this._settings, this.path);
         this._windowAnimations = new WindowAnimationManager(this._settings);
@@ -52,6 +55,7 @@ export default class SheliakExtension extends Extension {
 
     disable(): void {
         console.debug(`Sheliak: disable() em ${this.uuid}`);
+        this._restoreDesktopStartup();
         if (this._dashWasVisible)
             Main.overview.dash.show();
         if (this._settings && this._hideWorkspaceButtonSignal)
@@ -78,5 +82,35 @@ export default class SheliakExtension extends Extension {
             this._activitiesButton?.hide();
         else if (this._activitiesButtonWasVisible)
             this._activitiesButton?.show();
+    }
+
+    private _prepareDesktopStartup(): void {
+        if (!Main.layoutManager._startingUp)
+            return;
+
+        // O Shell usa hasOverview para decidir entre iniciar na Overview ou
+        // executar a animação legada diretamente na área de trabalho.
+        // A alteração é temporária e afeta somente o login em andamento.
+        this._sessionHadOverview = Boolean(Main.sessionMode.hasOverview);
+        Main.sessionMode.hasOverview = false;
+
+        // Os índices internos começam em zero; esta é a área exibida como 1.
+        global.workspace_manager.get_workspace_by_index(0)?.activate(
+            global.get_current_time());
+
+        this._startupCompleteSignal = Main.layoutManager.connect(
+            'startup-complete', () => this._restoreDesktopStartup());
+    }
+
+    private _restoreDesktopStartup(): void {
+        if (this._startupCompleteSignal) {
+            Main.layoutManager.disconnect(this._startupCompleteSignal);
+            this._startupCompleteSignal = 0;
+        }
+
+        if (this._sessionHadOverview !== null) {
+            Main.sessionMode.hasOverview = this._sessionHadOverview;
+            this._sessionHadOverview = null;
+        }
     }
 }
