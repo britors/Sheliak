@@ -76,6 +76,10 @@ export class Dock {
         this._trailingSpacer = new St.Widget({visible: false});
         this.actor.add_child(this._leadingSpacer);
         this.actor.add_child(this._appsBox);
+        // Keep the system actions outside the aligned apps area. When the
+        // dock is extended, this spacer absorbs the remaining room after the
+        // apps, leaving Trash and Show Apps anchored at the end.
+        this.actor.add_child(this._trailingSpacer);
 
         this._separator = new St.Widget({style_class: 'sheliak-separator'});
         this.actor.add_child(this._separator);
@@ -84,7 +88,6 @@ export class Dock {
         this._showApps = new ShowAppsButton(logoPath, logoPathLight);
         this.actor.add_child(this._trash.actor);
         this.actor.add_child(this._showApps.actor);
-        this.actor.add_child(this._trailingSpacer);
 
         this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
         this._launcherEntries = new LauncherEntryTracker(
@@ -458,8 +461,8 @@ export class Dock {
             return [0, 0, 0, 0];
 
         const position = this._settings.get_string('position');
-        const margin = this._settings.get_uint('edge-margin');
         const extend = this._settings.get_boolean('extend-to-edges');
+        const margin = extend ? 0 : this._settings.get_uint('edge-margin');
         const horizontal = position === 'top' || position === 'bottom';
         // Docas laterais compartilham o monitor primário com a topbar; sem
         // descontar a altura dela do espaço vertical disponível, "estender
@@ -525,7 +528,6 @@ export class Dock {
             return;
 
         const position = this._settings.get_string('position');
-        const margin = this._settings.get_uint('edge-margin');
         const extend = this._settings.get_boolean('extend-to-edges');
         const alignment = this._settings.get_string('content-alignment');
         const horizontal = position === 'top' || position === 'bottom';
@@ -541,7 +543,7 @@ export class Dock {
             this.actor.add_style_class_name('horizontal');
             this.actor.remove_style_class_name('vertical');
         }
-        if (extend && margin === 0)
+        if (extend)
             this.actor.add_style_class_name('squared');
         else
             this.actor.remove_style_class_name('squared');

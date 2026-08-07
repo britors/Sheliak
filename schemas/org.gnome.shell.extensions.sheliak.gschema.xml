@@ -10,7 +10,7 @@
     <key name="animation" type="b"><default>true</default><summary>Animate dock visibility</summary></key>
     <key name="minimize-animation" type="s"><default>'zoom'</default><summary>Window minimize and restore animation: zoom, fade, or none</summary></key>
     <key name="extend-to-edges" type="b"><default>false</default><summary>Stretch the dock across the full length of its edge</summary></key>
-    <key name="content-alignment" type="s"><default>'center'</default><summary>Alignment of favorites, running apps, and trash along the dock: start, center, or end</summary></key>
+    <key name="content-alignment" type="s"><default>'center'</default><summary>Alignment of favorites and running apps along the dock: start, center, or end</summary></key>
     <key name="show-running" type="b"><default>true</default><summary>Show running applications</summary></key>
     <key name="running-apps-position" type="s"><default>'end'</default><summary>Where running, non-favorite applications appear relative to favorites: start or end</summary></key>
     <key name="show-trash" type="b"><default>true</default><summary>Show the trash button</summary></key>

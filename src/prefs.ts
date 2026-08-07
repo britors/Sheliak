@@ -62,7 +62,7 @@ function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
 }
 
 function addContentAlignment(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
-    const row = new Adw.ActionRow({title: 'Alinhamento', subtitle: 'Posição dos favoritos, apps abertos e lixeira ao longo do dock'});
+    const row = new Adw.ActionRow({title: 'Alinhamento', subtitle: 'Posição dos favoritos e apps abertos ao longo do dock'});
     const values = [['start', 'Início'], ['center', 'Centro'], ['end', 'Fim']];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
