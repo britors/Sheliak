@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import {installPreferencesTheme} from './prefsTheme.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.sheliak';
 
@@ -125,6 +126,7 @@ function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
 export default class SheliakPreferences extends ExtensionPreferences {
     async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         console.debug('Sheliak: abrindo janela de preferências');
+        installPreferencesTheme(window, `${this.path}/prefs.css`);
         const settings = this.getSettings(SCHEMA);
         const appearance = new Adw.PreferencesPage({title: 'Aparência', icon_name: 'preferences-desktop-theme-symbolic'});
         const appearanceGroup = new Adw.PreferencesGroup({title: 'Aparência'});
@@ -221,7 +223,7 @@ function showAboutDialog(window: Adw.PreferencesWindow): void {
         application_name: 'Sheliak',
         application_icon: 'folder-download-symbolic',
         developer_name: 'Lyra OS',
-        version: '1.7.0',
+        version: '1.9.0',
         website: 'https://github.com/britors/Sheliak',
         issue_url: 'https://github.com/britors/Sheliak/issues',
         license_type: Gtk.License.GPL_3_0,

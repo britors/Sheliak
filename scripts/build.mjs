@@ -37,6 +37,7 @@ await build({
 await Promise.all([
     cp(new URL('../metadata.json', import.meta.url), new URL('metadata.json', outdir)),
     cp(new URL('../stylesheet.css', import.meta.url), new URL('stylesheet.css', outdir)),
+    cp(new URL('../prefs.css', import.meta.url), new URL('prefs.css', outdir)),
     mkdir(new URL('schemas/', outdir), {recursive: true}),
     cp(new URL('../schemas/org.gnome.shell.extensions.sheliak.gschema.xml', import.meta.url),
         new URL('schemas/org.gnome.shell.extensions.sheliak.gschema.xml', outdir)),
