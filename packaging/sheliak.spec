@@ -1,5 +1,5 @@
 Name:           sheliak
-Version:        1.7.0
+Version:        1.9.0
 Release:        0
 Summary:        Native Lyra OS dock for GNOME Shell
 License:        GPL-3.0-or-later
@@ -29,6 +29,7 @@ install -d %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org
 install -m 0644 \
     dist/extension.js \
     dist/prefs.js \
+    dist/prefs.css \
     dist/metadata.json \
     dist/stylesheet.css \
     %{buildroot}%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/
@@ -47,6 +48,7 @@ install -m 0644 dist/icons/* \
 %dir %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/extension.js
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/prefs.js
+%{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/prefs.css
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/metadata.json
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/stylesheet.css
 %{_datadir}/gnome-shell/extensions/sheliak@lyraos.org/schemas
