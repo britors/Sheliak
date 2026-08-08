@@ -1,5 +1,6 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -8,6 +9,7 @@ import {SignalTracker} from './signals.js';
 
 const SHELIAK_PANEL_INDICATOR = 'sheliak-panel-indicator';
 const FLOATING_PANEL_CLASS = 'sheliak-panel-floating';
+const FLUSH_PANEL_CLASS = 'sheliak-panel-flush';
 const LIGHT_THEME_CLASS = 'light-theme';
 const MAX_PANEL_MARGIN = 32;
 
@@ -35,6 +37,8 @@ export class TopBarManager {
     private _dateMenuWasVisible: boolean;
     private _rightBox: Clutter.Actor;
     private _nativeIndicators = new Map<VisibleActor, boolean>();
+    private _trackedWindows = new Set<Meta.Window>();
+    private _flush = false;
 
     constructor(settings: Gio.Settings) {
         this._settings = settings;
@@ -63,6 +67,17 @@ export class TopBarManager {
                 this._trackNativeIndicator(actor);
                 this._syncIndicator(actor as VisibleActor);
             });
+        this._signals.connect(global.display, 'window-created',
+            (_display: unknown, window: Meta.Window) => {
+                this._trackWindow(window);
+                this._syncFloating();
+            });
+        this._signals.connect(global.workspace_manager, 'active-workspace-changed',
+            () => this._syncFloating());
+        for (const windowActor of global.get_window_actors()) {
+            if (windowActor.meta_window)
+                this._trackWindow(windowActor.meta_window);
+        }
 
         this._syncHeight();
         this._syncClock();
@@ -81,6 +96,7 @@ export class TopBarManager {
                 actor.show();
         }
         this._nativeIndicators.clear();
+        this._trackedWindows.clear();
         this._dateMenu = null;
     }
 
@@ -116,6 +132,12 @@ export class TopBarManager {
      * `panelBox` (um St.BoxLayout vertical com a largura do monitor): ele
      * encolhe a barra pela margem e cresce em altura junto, então o strut —
      * e portanto a área de trabalho das janelas — já considera o vão.
+     *
+     * Enquanto houver uma janela maximizada no espaço de trabalho ativo, a
+     * barra "cola" nas bordas (sem margens nem cantos arredondados) para não
+     * destoar da janela colada nela — mesma lógica de sobreposição usada pelo
+     * dock (`dock.ts` `_windowOverlapsDock`), mas restrita a maximização em
+     * vez de qualquer sobreposição de retângulo.
      */
     private _syncFloating(): void {
         const floating = this._settings.get_boolean('floating-panel');
@@ -124,13 +146,22 @@ export class TopBarManager {
             return;
         }
 
-        const margin = Math.min(MAX_PANEL_MARGIN, this._settings.get_uint('panel-margin'));
         const panel = Main.panel;
+        const flush = this._hasMaximizedWindow();
+        const margin = flush ? 0 : Math.min(MAX_PANEL_MARGIN, this._settings.get_uint('panel-margin'));
         panel.margin_top = margin;
         panel.margin_bottom = margin;
         panel.margin_left = margin;
         panel.margin_right = margin;
         panel.add_style_class_name(FLOATING_PANEL_CLASS);
+        if (flush)
+            panel.add_style_class_name(FLUSH_PANEL_CLASS);
+        else
+            panel.remove_style_class_name(FLUSH_PANEL_CLASS);
+        if (flush !== this._flush) {
+            this._flush = flush;
+            console.debug(`Sheliak: barra ${flush ? 'colada (janela maximizada)' : 'flutuante'}`);
+        }
 
         // A paleta Lyra tem variantes clara e escura; o resto do visual (raio,
         // borda, sombra) é o mesmo do dock, para as duas superfícies
@@ -148,7 +179,29 @@ export class TopBarManager {
         panel.margin_left = 0;
         panel.margin_right = 0;
         panel.remove_style_class_name(FLOATING_PANEL_CLASS);
+        panel.remove_style_class_name(FLUSH_PANEL_CLASS);
         panel.remove_style_class_name(LIGHT_THEME_CLASS);
+    }
+
+    private _trackWindow(window: Meta.Window): void {
+        if (this._trackedWindows.has(window))
+            return;
+        this._trackedWindows.add(window);
+        for (const signal of ['notify::maximized-horizontally',
+            'notify::maximized-vertically', 'workspace-changed', 'notify::minimized']) {
+            this._signals.connect(window, signal, () => this._syncFloating());
+        }
+    }
+
+    private _hasMaximizedWindow(): boolean {
+        const workspace = global.workspace_manager.get_active_workspace();
+        return global.get_window_actors().some(windowActor => {
+            const window = windowActor.meta_window;
+            return !!window && !window.minimized && window.showing_on_its_workspace()
+                && window.get_workspace() === workspace
+                && window.get_monitor() === Main.layoutManager.primaryIndex
+                && window.get_maximized() === Meta.MaximizeFlags.BOTH;
+        });
     }
 
     private _syncClock(): void {

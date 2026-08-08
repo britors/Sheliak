@@ -198,6 +198,14 @@
   color: #14142b;
 }
 
+/* Enquanto uma janela estiver maximizada (ver topBar.ts _hasMaximizedWindow),
+ * a barra cola nas bordas: sem cantos arredondados, para casar com a janela
+ * colada nela. As margens já são zeradas via Clutter, não CSS. */
+#panel.sheliak-panel-floating.sheliak-panel-flush,
+#panel.sheliak-panel-floating.sheliak-panel-flush:overview {
+  border-radius: 0;
+}
+
 /* O tema pinta o realce dos botões com branco puro via box-shadow interno;
  * trocamos pelo azul Lyra, mantendo a mesma técnica para não brigar com o
  * arredondamento em pílula que o tema já aplica. */
