@@ -468,8 +468,13 @@ export class Dock {
 
         const position = this._settings.get_string('position');
         const extend = this._settings.get_boolean('extend-to-edges');
-        const margin = extend ? 0 : this._settings.get_uint('edge-margin');
         const horizontal = position === 'top' || position === 'bottom';
+        // Estender até as bordas só remove a margem e os cantos arredondados
+        // na horizontal: numa doca lateral, "esticar" continua útil (ocupar
+        // toda a altura disponível), mas sem margem ela encostaria direto na
+        // topbar e na borda inferior da tela, e sem cantos arredondados
+        // destoaria da topbar flutuante e do restante da doca.
+        const margin = (extend && horizontal) ? 0 : this._settings.get_uint('edge-margin');
         // Docas laterais compartilham o monitor primário com a topbar; sem
         // descontar a altura dela do espaço vertical disponível, "estender
         // até as bordas" (ou o alinhamento "start") empurra a doca por baixo
@@ -549,7 +554,7 @@ export class Dock {
             this.actor.add_style_class_name('horizontal');
             this.actor.remove_style_class_name('vertical');
         }
-        if (extend)
+        if (extend && horizontal)
             this.actor.add_style_class_name('squared');
         else
             this.actor.remove_style_class_name('squared');

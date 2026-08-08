@@ -589,6 +589,7 @@ class SearchIndicator {
     private _appSystem = Shell.AppSystem.get_default();
     private _signals = new SignalTracker();
     private _entry: St.Entry;
+    private _clearIcon: St.Icon;
     private _resultsMenu: PopupMenu.PopupMenu;
     private _index: SearchItem[] = [];
     private _topResult: SearchItem | null = null;
@@ -602,7 +603,7 @@ class SearchIndicator {
 
         this._entry = new St.Entry({
             style_class: 'search-entry sheliak-search-entry',
-            hint_text: 'Buscar…',
+            hint_text: 'Buscar aplicativos e arquivos…',
             can_focus: true,
             y_align: Clutter.ActorAlign.CENTER,
             primary_icon: new St.Icon({
@@ -610,6 +611,15 @@ class SearchIndicator {
                 icon_name: 'edit-find-symbolic',
             }),
         });
+
+        // O “x” só aparece quando há texto; St.Entry não gerencia a
+        // visibilidade do ícone, então ela é alternada em _updateResults().
+        this._clearIcon = new St.Icon({
+            style_class: 'search-entry-icon',
+            icon_name: 'edit-clear-symbolic',
+            visible: false,
+        });
+        this._entry.set_secondary_icon(this._clearIcon);
         this.button.add_child(this._entry);
 
         // Sem grab modal: o campo faz parte do botão do painel, e um grab
@@ -627,6 +637,11 @@ class SearchIndicator {
         this._resultsMenu.actor.add_style_class_name('sheliak-search-results');
         Main.uiGroup.add_child(this._resultsMenu.actor);
         this._resultsMenu.actor.hide();
+
+        this._signals.connect(this._entry, 'secondary-icon-clicked', () => {
+            this._clearSearch();
+            this._entry.grab_key_focus();
+        });
 
         this._signals.connect(this._entry.clutter_text, 'text-changed', () => this._updateResults());
         this._signals.connect(this._entry.clutter_text, 'key-press-event',
@@ -696,6 +711,7 @@ class SearchIndicator {
 
     private _updateResults(): void {
         const query = this._entry.get_text().trim().toLowerCase();
+        this._clearIcon.visible = this._entry.get_text().length > 0;
 
         if (!query) {
             this._resultsMenu.close();

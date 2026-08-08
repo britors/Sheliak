@@ -7,6 +7,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {SignalTracker} from './signals.js';
 
 const SHELIAK_PANEL_INDICATOR = 'sheliak-panel-indicator';
+const FLOATING_PANEL_CLASS = 'sheliak-panel-floating';
+const LIGHT_THEME_CLASS = 'light-theme';
+const MAX_PANEL_MARGIN = 32;
 
 type PanelInternals = {
     _rightBox: Clutter.Actor;
@@ -26,6 +29,7 @@ type VisibleActor = Clutter.Actor & {
  */
 export class TopBarManager {
     private _settings: Gio.Settings;
+    private _interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
     private _signals = new SignalTracker();
     private _dateMenu: VisibleActor | null;
     private _dateMenuWasVisible: boolean;
@@ -48,6 +52,12 @@ export class TopBarManager {
             () => this._syncClock());
         this._signals.connect(this._settings, 'changed::show-panel-indicators',
             () => this._syncIndicators());
+        this._signals.connect(this._settings, 'changed::floating-panel',
+            () => this._syncFloating());
+        this._signals.connect(this._settings, 'changed::panel-margin',
+            () => this._syncFloating());
+        this._signals.connect(this._interfaceSettings, 'changed::color-scheme',
+            () => this._syncFloating());
         this._signals.connect(this._rightBox, 'child-added',
             (_box: Clutter.Actor, actor: Clutter.Actor) => {
                 this._trackNativeIndicator(actor);
@@ -57,10 +67,12 @@ export class TopBarManager {
         this._syncHeight();
         this._syncClock();
         this._syncIndicators();
+        this._syncFloating();
     }
 
     destroy(): void {
         this._signals.destroy();
+        this._resetFloating();
         Main.panel.set_height(-1);
         if (this._dateMenuWasVisible)
             this._dateMenu?.show();
@@ -96,6 +108,47 @@ export class TopBarManager {
     private _syncHeight(): void {
         Main.panel.set_height(Math.max(24, Math.min(64,
             this._settings.get_uint('panel-height'))));
+    }
+
+    /**
+     * Destaca a barra das bordas da tela. A margem usa as propriedades de
+     * margem do Clutter em vez de CSS porque quem aloca a barra é o
+     * `panelBox` (um St.BoxLayout vertical com a largura do monitor): ele
+     * encolhe a barra pela margem e cresce em altura junto, então o strut —
+     * e portanto a área de trabalho das janelas — já considera o vão.
+     */
+    private _syncFloating(): void {
+        const floating = this._settings.get_boolean('floating-panel');
+        if (!floating) {
+            this._resetFloating();
+            return;
+        }
+
+        const margin = Math.min(MAX_PANEL_MARGIN, this._settings.get_uint('panel-margin'));
+        const panel = Main.panel;
+        panel.margin_top = margin;
+        panel.margin_bottom = margin;
+        panel.margin_left = margin;
+        panel.margin_right = margin;
+        panel.add_style_class_name(FLOATING_PANEL_CLASS);
+
+        // A paleta Lyra tem variantes clara e escura; o resto do visual (raio,
+        // borda, sombra) é o mesmo do dock, para as duas superfícies
+        // combinarem na tela.
+        if (this._interfaceSettings.get_string('color-scheme') === 'prefer-dark')
+            panel.remove_style_class_name(LIGHT_THEME_CLASS);
+        else
+            panel.add_style_class_name(LIGHT_THEME_CLASS);
+    }
+
+    private _resetFloating(): void {
+        const panel = Main.panel;
+        panel.margin_top = 0;
+        panel.margin_bottom = 0;
+        panel.margin_left = 0;
+        panel.margin_right = 0;
+        panel.remove_style_class_name(FLOATING_PANEL_CLASS);
+        panel.remove_style_class_name(LIGHT_THEME_CLASS);
     }
 
     private _syncClock(): void {

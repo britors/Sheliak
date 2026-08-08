@@ -159,6 +159,10 @@ export default class SheliakPreferences extends ExtensionPreferences {
         const topBarGroup = new Adw.PreferencesGroup({title: 'Barra superior'});
         addSpin(topBarGroup, settings, 'panel-height', 'Tamanho',
             'Altura da barra em pixels', 24, 64, 1);
+        addSwitch(topBarGroup, settings, 'floating-panel', 'Barra flutuante',
+            'Descolar a barra das bordas, com cantos arredondados e as cores do Lyra');
+        addSpin(topBarGroup, settings, 'panel-margin', 'Margem da barra',
+            'Distância entre a barra flutuante e as bordas da tela, em pixels', 0, 32, 1);
         addSwitch(topBarGroup, settings, 'show-clock', 'Relógio',
             'Mostrar data e hora no centro da barra');
         addSwitch(topBarGroup, settings, 'show-panel-indicators', 'Itens da direita',

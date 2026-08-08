@@ -172,9 +172,59 @@
 }
 
 /*
- * A caixa de busca herda cor/estado de StEntry.search-entry do tema do
- * sistema (já correto em claro/escuro); só ajustamos forma e tamanho para
- * caber like um pill compacto na barra superior.
+ * Barra superior flutuante. Diferente do dock, aqui a paleta Lyra não depende
+ * do tema instalado: quem liga `floating-panel` está pedindo o visual do Lyra,
+ * então a superfície é a mesma do dock em .lyra-theme para as duas casarem na
+ * tela. A margem que descola a barra das bordas vem do JS (topBar.ts).
+ * O :overview repete as regras porque o tema do Shell zera o fundo do painel
+ * na visão geral com especificidade equivalente à do seletor base.
+ */
+#panel.sheliak-panel-floating,
+#panel.sheliak-panel-floating:overview {
+  /* lyra-slate-alt, com transparência */
+  background-color: rgba(34, 40, 49, 0.82);
+  /* lyra-mist */
+  border: 1px solid rgba(205, 214, 224, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30);
+  color: #e8ecff;
+}
+
+#panel.sheliak-panel-floating.light-theme,
+#panel.sheliak-panel-floating.light-theme:overview {
+  background-color: rgba(246, 247, 249, 0.88);
+  border-color: rgba(20, 20, 43, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  color: #14142b;
+}
+
+/* O tema pinta o realce dos botões com branco puro via box-shadow interno;
+ * trocamos pelo azul Lyra, mantendo a mesma técnica para não brigar com o
+ * arredondamento em pílula que o tema já aplica. */
+#panel.sheliak-panel-floating .panel-button:focus,
+#panel.sheliak-panel-floating .panel-button:hover {
+  box-shadow: inset 0 0 0 100px rgba(110, 168, 255, 0.20);
+}
+
+#panel.sheliak-panel-floating .panel-button:active,
+#panel.sheliak-panel-floating .panel-button:checked {
+  box-shadow: inset 0 0 0 100px rgba(110, 168, 255, 0.32);
+}
+
+#panel.sheliak-panel-floating.light-theme .panel-button:focus,
+#panel.sheliak-panel-floating.light-theme .panel-button:hover {
+  box-shadow: inset 0 0 0 100px rgba(59, 118, 240, 0.16);
+}
+
+#panel.sheliak-panel-floating.light-theme .panel-button:active,
+#panel.sheliak-panel-floating.light-theme .panel-button:checked {
+  box-shadow: inset 0 0 0 100px rgba(59, 118, 240, 0.26);
+}
+
+/*
+ * A caixa de busca é desenhada com tons neutros (cinza translúcido) em vez
+ * de cores fixas, para ficar legível tanto sobre a barra escura quanto sobre
+ * a clara — o tema do sistema só fornece a cor do texto, que é herdada.
  */
 #panel .sheliak-search-button.panel-button {
   padding: 0 4px;
@@ -188,29 +238,64 @@
   background-color: transparent;
 }
 
-/* Mantenha em sincronia com o min-width de .sheliak-search-results abaixo,
- * para o dropdown de resultados ficar com as bordas alinhadas ao campo. */
+/* Mantenha a largura em sincronia com o min-width de .sheliak-search-results
+ * abaixo, para o dropdown de resultados ficar alinhado com o campo. */
 .sheliak-search-entry {
-  width: 280px;
-  height: 1.6em;
+  width: 300px;
   min-height: 0;
   margin: 0;
-  padding: 0 12px 0 6px;
+  padding: 4px 12px 4px 10px;
+  spacing: 8px;
   font-size: 0.95em;
   border-radius: 999px;
+  border: 1px solid rgba(127, 127, 127, 0.22);
+  background-color: rgba(127, 127, 127, 0.14);
+  box-shadow: none;
+  transition-duration: 150ms;
+}
+
+.sheliak-search-entry:hover {
+  border-color: rgba(127, 127, 127, 0.38);
+  background-color: rgba(127, 127, 127, 0.22);
+}
+
+/* O foco troca a moldura neutra por um azul suave: destaca o campo ativo sem
+ * depender do accent do tema (que não é exposto a extensões no Shell 48). */
+.sheliak-search-entry:focus {
+  border-color: rgba(97, 149, 242, 0.85);
+  background-color: rgba(127, 127, 127, 0.26);
+  box-shadow: none;
+}
+
+.sheliak-search-entry StLabel.hint-text {
+  color: rgba(140, 143, 150, 1);
+  font-style: italic;
 }
 
 .sheliak-search-entry .search-entry-icon {
   icon-size: 1em;
+  padding: 0;
 }
 
-/* Sem seta e sem vão: o dropdown fica colado direto abaixo do campo,
- * em vez de flutuar deslocado como um popup-menu comum. */
+/* Sem seta e com um vão mínimo: o dropdown fica logo abaixo do campo, em vez
+ * de flutuar deslocado como um popup-menu comum. */
 .sheliak-search-results {
   -arrow-rise: 0px;
-  -boxpointer-gap: 0px;
+  -boxpointer-gap: 4px;
 }
 
 .sheliak-search-results .popup-menu-content {
-  min-width: 280px;
+  min-width: 300px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.sheliak-search-results .popup-menu-item {
+  spacing: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
+.sheliak-search-results .popup-menu-item .popup-menu-icon {
+  icon-size: 20px;
 }
