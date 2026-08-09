@@ -11,6 +11,9 @@ const SHELIAK_PANEL_INDICATOR = 'sheliak-panel-indicator';
 const FLOATING_PANEL_CLASS = 'sheliak-panel-floating';
 const FLUSH_PANEL_CLASS = 'sheliak-panel-flush';
 const LIGHT_THEME_CLASS = 'light-theme';
+const SHELL_THEME_CLASS = 'sheliak-shell-theme';
+const SHELL_LIGHT_THEME_CLASS = 'sheliak-shell-light-theme';
+const PANEL_MENU_CLASS = 'sheliak-panel-menu';
 const MAX_PANEL_MARGIN = 32;
 
 type PanelInternals = {
@@ -21,6 +24,12 @@ type VisibleActor = Clutter.Actor & {
     visible: boolean;
     hide: () => void;
     show: () => void;
+};
+
+type PanelMenuOwner = Clutter.Actor & {
+    menu?: {
+        actor?: St.Widget;
+    };
 };
 
 /**
@@ -37,6 +46,7 @@ export class TopBarManager {
     private _dateMenuWasVisible: boolean;
     private _rightBox: Clutter.Actor;
     private _nativeIndicators = new Map<VisibleActor, boolean>();
+    private _panelMenuActors = new Set<St.Widget>();
     private _trackedWindows = new Set<Meta.Window>();
     private _flush = false;
 
@@ -47,8 +57,12 @@ export class TopBarManager {
         this._dateMenuWasVisible = this._dateMenu?.visible ?? false;
         this._rightBox = (Main.panel as unknown as PanelInternals)._rightBox;
 
-        for (const actor of this._rightBox.get_children())
+        for (const actor of this._rightBox.get_children()) {
             this._trackNativeIndicator(actor);
+            this._trackPanelMenu(actor);
+        }
+        for (const indicator of Object.values(statusArea))
+            this._trackPanelMenu(indicator);
 
         this._signals.connect(this._settings, 'changed::panel-height',
             () => this._syncHeight());
@@ -65,6 +79,7 @@ export class TopBarManager {
         this._signals.connect(this._rightBox, 'child-added',
             (_box: Clutter.Actor, actor: Clutter.Actor) => {
                 this._trackNativeIndicator(actor);
+                this._trackPanelMenu(actor);
                 this._syncIndicator(actor as VisibleActor);
             });
         this._signals.connect(global.display, 'window-created',
@@ -96,6 +111,11 @@ export class TopBarManager {
                 actor.show();
         }
         this._nativeIndicators.clear();
+        for (const actor of this._panelMenuActors) {
+            if (actor.get_parent())
+                actor.remove_style_class_name(PANEL_MENU_CLASS);
+        }
+        this._panelMenuActors.clear();
         this._trackedWindows.clear();
         this._dateMenu = null;
     }
@@ -119,6 +139,19 @@ export class TopBarManager {
                 indicator.hide();
             }
         });
+    }
+
+    /**
+     * Os popovers do painel são filhos de Main.uiGroup, não de #panel. A classe
+     * precisa, portanto, ser aplicada ao ator do próprio menu para que a
+     * paleta da barra alcance também calendário e configurações rápidas.
+     */
+    private _trackPanelMenu(owner: Clutter.Actor): void {
+        const actor = (owner as PanelMenuOwner).menu?.actor;
+        if (!actor || this._panelMenuActors.has(actor))
+            return;
+        actor.add_style_class_name(PANEL_MENU_CLASS);
+        this._panelMenuActors.add(actor);
     }
 
     private _syncHeight(): void {
@@ -154,6 +187,7 @@ export class TopBarManager {
         panel.margin_left = margin;
         panel.margin_right = margin;
         panel.add_style_class_name(FLOATING_PANEL_CLASS);
+        Main.uiGroup.add_style_class_name(SHELL_THEME_CLASS);
         if (flush)
             panel.add_style_class_name(FLUSH_PANEL_CLASS);
         else
@@ -166,10 +200,13 @@ export class TopBarManager {
         // A paleta Lyra tem variantes clara e escura; o resto do visual (raio,
         // borda, sombra) é o mesmo do dock, para as duas superfícies
         // combinarem na tela.
-        if (this._interfaceSettings.get_string('color-scheme') === 'prefer-dark')
+        if (this._interfaceSettings.get_string('color-scheme') === 'prefer-dark') {
             panel.remove_style_class_name(LIGHT_THEME_CLASS);
-        else
+            Main.uiGroup.remove_style_class_name(SHELL_LIGHT_THEME_CLASS);
+        } else {
             panel.add_style_class_name(LIGHT_THEME_CLASS);
+            Main.uiGroup.add_style_class_name(SHELL_LIGHT_THEME_CLASS);
+        }
     }
 
     private _resetFloating(): void {
@@ -181,6 +218,8 @@ export class TopBarManager {
         panel.remove_style_class_name(FLOATING_PANEL_CLASS);
         panel.remove_style_class_name(FLUSH_PANEL_CLASS);
         panel.remove_style_class_name(LIGHT_THEME_CLASS);
+        Main.uiGroup.remove_style_class_name(SHELL_THEME_CLASS);
+        Main.uiGroup.remove_style_class_name(SHELL_LIGHT_THEME_CLASS);
     }
 
     private _trackWindow(window: Meta.Window): void {
