@@ -55,6 +55,12 @@ export class TooltipManager {
             return;
 
         this._label.text = text;
+        // Clear any previously fixed size first: once set_size() below fixes
+        // the label's natural size, Clutter's get_preferred_width/height
+        // stop reflecting the current text and just return that old fixed
+        // value, so without this reset a longer title on a later hover gets
+        // truncated to whatever size the last tooltip used.
+        this._label.set_size(-1, -1);
         const [, naturalWidth] = this._label.get_preferred_width(-1);
         const [, naturalHeight] = this._label.get_preferred_height(-1);
         this._label.set_size(naturalWidth, naturalHeight);
