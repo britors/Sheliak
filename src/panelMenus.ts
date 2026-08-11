@@ -39,6 +39,9 @@ type SearchItem = {
     activate: () => void;
 };
 
+const LYRA_SOURCE_URL = 'https://github.com/britors/lyra';
+const LYRA_ISSUES_URL = 'https://github.com/britors/Lyra/issues';
+
 const APP_CATEGORIES = [
     {id: 'AudioVideo', label: 'Multimídia', icon: 'applications-multimedia-symbolic'},
     {id: 'Development', label: 'Desenvolvimento', icon: 'applications-engineering-symbolic'},
@@ -537,6 +540,22 @@ class SystemIndicator {
         this.button.add_child(panelLabel('Sistema', 'preferences-system-symbolic'));
         const menu = this.button.menu as PopupMenu.PopupMenu;
         menu.actor.add_style_class_name('sheliak-panel-menu');
+
+        const sourceItem = new PopupMenu.PopupImageMenuItem('Código-fonte', 'web-browser-symbolic');
+        sourceItem.connect('activate', () => {
+            menu.close();
+            openUri(LYRA_SOURCE_URL);
+        });
+        menu.addMenuItem(sourceItem);
+
+        const reportBugItem = new PopupMenu.PopupImageMenuItem('Reportar erro', 'bug-symbolic');
+        reportBugItem.connect('activate', () => {
+            menu.close();
+            openUri(LYRA_ISSUES_URL);
+        });
+        menu.addMenuItem(reportBugItem);
+
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         const vegaIcon = (this._appSystem.lookup_app('vega.desktop')?.get_icon() as
             unknown as Gio.Icon | undefined) ?? 'preferences-other-symbolic';
