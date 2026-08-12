@@ -264,6 +264,12 @@
   transition-duration: 150ms;
 }
 
+/* Ao colar a topbar em uma janela maximizada, deixe a busca acompanhar a
+ * geometria plana da barra. */
+#panel.sheliak-panel-flush .sheliak-search-entry {
+  border-radius: 0;
+}
+
 .sheliak-search-entry:hover {
   border-color: rgba(127, 127, 127, 0.38);
   background-color: rgba(127, 127, 127, 0.22);
