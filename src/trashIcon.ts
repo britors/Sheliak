@@ -4,6 +4,7 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 
 import {SignalTracker} from './signals.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const TRASH_URI = 'trash:///';
 const ICON_SIZE = 32;
@@ -27,7 +28,7 @@ export class TrashIcon {
             reactive: true,
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Lixeira',
+            accessible_name: _('Trash'),
         });
 
         this._signals.connect(this.actor, 'clicked', () => {

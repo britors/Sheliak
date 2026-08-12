@@ -1,5 +1,5 @@
 import {build} from 'esbuild';
-import {cp, mkdir, rm} from 'node:fs/promises';
+import {cp, mkdir, readFile, readdir, rm, writeFile} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 
@@ -43,5 +43,33 @@ await Promise.all([
         new URL('schemas/org.gnome.shell.extensions.sheliak.gschema.xml', outdir)),
     cp(new URL('../icons/', import.meta.url), new URL('icons/', outdir), {recursive: true}),
 ]);
+
+for (const catalogFile of await readdir(new URL('../po/', import.meta.url))) {
+    if (!catalogFile.endsWith('.json'))
+        continue;
+    const languageTag = catalogFile.slice(0, -5);
+    const language = languageTag.replace('-', '_');
+    const translations = JSON.parse(await readFile(
+        new URL(`../po/${catalogFile}`, import.meta.url), 'utf8'));
+    const escapePo = value => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n');
+    const entries = Object.entries(translations)
+        .map(([msgid, msgstr]) => `msgid "${escapePo(msgid)}"\nmsgstr "${escapePo(msgstr)}"\n`)
+        .join('\n');
+    const po = `msgid ""\nmsgstr ""\n` +
+        `"Project-Id-Version: Sheliak 1.10.0\\n"\n` +
+        `"Language: ${language}\\n"\n` +
+        `"Content-Type: text/plain; charset=UTF-8\\n"\n` +
+        `"Content-Transfer-Encoding: 8bit\\n"\n\n${entries}`;
+    const poPath = new URL(`${language}.po`, outdir);
+    await writeFile(poPath, po);
+    const localeDir = new URL(`locale/${language}/LC_MESSAGES/`, outdir);
+    await mkdir(localeDir, {recursive: true});
+    await execFileAsync('msgfmt', [
+        '--check',
+        '--output-file', new URL('sheliak.mo', localeDir).pathname,
+        poPath.pathname,
+    ]);
+}
 
 await execFileAsync('glib-compile-schemas', [new URL('schemas/', outdir).pathname]);

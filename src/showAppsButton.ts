@@ -2,6 +2,7 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export class ShowAppsButton {
     readonly actor: St.Button;
@@ -24,7 +25,7 @@ export class ShowAppsButton {
             reactive: true,
             can_focus: true,
             track_hover: true,
-            accessible_name: 'Mostrar aplicativos',
+            accessible_name: _('Show Applications'),
         });
         this.actor.connect('clicked', () => Main.overview.showApps());
     }

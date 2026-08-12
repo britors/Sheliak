@@ -8,6 +8,7 @@ import Tracker from 'gi://Tracker';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {SignalTracker} from './signals.js';
 
@@ -43,26 +44,26 @@ const LYRA_SOURCE_URL = 'https://github.com/britors/lyra';
 const LYRA_ISSUES_URL = 'https://github.com/britors/Lyra/issues';
 
 const APP_CATEGORIES = [
-    {id: 'AudioVideo', label: 'Multimídia', icon: 'applications-multimedia-symbolic'},
-    {id: 'Development', label: 'Desenvolvimento', icon: 'applications-engineering-symbolic'},
-    {id: 'Education', label: 'Educação', icon: 'accessories-dictionary-symbolic'},
-    {id: 'Game', label: 'Jogos', icon: 'applications-games-symbolic'},
-    {id: 'Graphics', label: 'Gráficos', icon: 'applications-graphics-symbolic'},
-    {id: 'Network', label: 'Internet', icon: 'web-browser-symbolic'},
-    {id: 'Office', label: 'Escritório', icon: 'x-office-document-symbolic'},
-    {id: 'Science', label: 'Ciência', icon: 'applications-science-symbolic'},
-    {id: 'Settings', label: 'Configurações', icon: 'preferences-system-symbolic'},
-    {id: 'System', label: 'Sistema', icon: 'applications-system-symbolic'},
-    {id: 'Utility', label: 'Acessórios', icon: 'applications-utilities-symbolic'},
+    {id: 'AudioVideo', label: _('Multimedia'), icon: 'applications-multimedia-symbolic'},
+    {id: 'Development', label: _('Development'), icon: 'applications-engineering-symbolic'},
+    {id: 'Education', label: _('Education'), icon: 'accessories-dictionary-symbolic'},
+    {id: 'Game', label: _('Games'), icon: 'applications-games-symbolic'},
+    {id: 'Graphics', label: _('Graphics'), icon: 'applications-graphics-symbolic'},
+    {id: 'Network', label: _('Internet'), icon: 'web-browser-symbolic'},
+    {id: 'Office', label: _('Office'), icon: 'x-office-document-symbolic'},
+    {id: 'Science', label: _('Science'), icon: 'applications-science-symbolic'},
+    {id: 'Settings', label: _('Settings'), icon: 'preferences-system-symbolic'},
+    {id: 'System', label: _('System'), icon: 'applications-system-symbolic'},
+    {id: 'Utility', label: _('Utilities'), icon: 'applications-utilities-symbolic'},
 ] as const;
 
 const SPECIAL_DIRECTORIES: Array<[GLib.UserDirectory, string, string]> = [
-    [GLib.UserDirectory.DIRECTORY_DESKTOP, 'Área de trabalho', 'user-desktop-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_DOCUMENTS, 'Documentos', 'folder-documents-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_DOWNLOAD, 'Downloads', 'folder-download-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_MUSIC, 'Música', 'folder-music-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_PICTURES, 'Imagens', 'folder-pictures-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_VIDEOS, 'Vídeos', 'folder-videos-symbolic'],
+    [GLib.UserDirectory.DIRECTORY_DESKTOP, _('Desktop'), 'user-desktop-symbolic'],
+    [GLib.UserDirectory.DIRECTORY_DOCUMENTS, _('Documents'), 'folder-documents-symbolic'],
+    [GLib.UserDirectory.DIRECTORY_DOWNLOAD, _('Downloads'), 'folder-download-symbolic'],
+    [GLib.UserDirectory.DIRECTORY_MUSIC, _('Music'), 'folder-music-symbolic'],
+    [GLib.UserDirectory.DIRECTORY_PICTURES, _('Pictures'), 'folder-pictures-symbolic'],
+    [GLib.UserDirectory.DIRECTORY_VIDEOS, _('Videos'), 'folder-videos-symbolic'],
 ];
 
 function alphabeticalCompare(a: string, b: string): number {
@@ -79,7 +80,7 @@ function launchApplication(appSystem: Shell.AppSystem, appInfo: ApplicationInfo)
             appInfo.launch([], null);
     } catch (error) {
         console.error(`Sheliak: falha ao abrir ${appInfo.get_display_name()}: ${error}`);
-        Main.notifyError('Não foi possível abrir o aplicativo', String(error));
+        Main.notifyError(_('Could not open the application'), String(error));
     }
 }
 
@@ -110,7 +111,7 @@ function openUri(uri: string): void {
             uri, null);
     } catch (error) {
         console.error(`Sheliak: não foi possível abrir ${uri}: ${error}`);
-        Main.notifyError('Não foi possível abrir o local', String(error));
+        Main.notifyError(_('Could not open the location'), String(error));
     }
 }
 
@@ -137,7 +138,7 @@ class ApplicationsIndicator {
 
     constructor(settings: Gio.Settings, extensionPath?: string) {
         this._settings = settings;
-        this.button = new PanelMenu.Button(0.5, 'Aplicativos');
+        this.button = new PanelMenu.Button(0.5, _('Applications'));
         this.button.add_style_class_name('sheliak-panel-indicator');
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
@@ -166,7 +167,7 @@ class ApplicationsIndicator {
             });
         box.add_child(this._icon);
         box.add_child(new St.Label({
-            text: 'Aplicativos',
+            text: _('Applications'),
             y_align: Clutter.ActorAlign.CENTER,
         }));
         this.button.add_child(box);
@@ -229,7 +230,7 @@ class ApplicationsIndicator {
         const openSideways = this._settings.get_boolean(
             'open-application-submenus-sideways');
         const categories = [...APP_CATEGORIES,
-            {id: 'Other', label: 'Outros', icon: 'applications-other-symbolic'}];
+            {id: 'Other', label: _('Other'), icon: 'applications-other-symbolic'}];
         if (sortAlphabetically)
             categories.sort((a, b) => alphabeticalCompare(a.label, b.label));
         let itemCount = 0;
@@ -287,7 +288,7 @@ class ApplicationsIndicator {
 
         if (itemCount === 0) {
             menu.addMenuItem(new PopupMenu.PopupMenuItem(
-                'Nenhum aplicativo encontrado', {reactive: false}));
+                _('No applications found'), {reactive: false}));
         }
     }
 
@@ -367,9 +368,9 @@ class PlacesIndicator {
 
     constructor(settings: Gio.Settings) {
         this._settings = settings;
-        this.button = new PanelMenu.Button(0.5, 'Locais');
+        this.button = new PanelMenu.Button(0.5, _('Places'));
         this.button.add_style_class_name('sheliak-panel-indicator');
-        this.button.add_child(panelLabel('Locais', 'folder-symbolic'));
+        this.button.add_child(panelLabel(_('Places'), 'folder-symbolic'));
         (this.button.menu as PopupMenu.PopupMenu).actor
             .add_style_class_name('sheliak-panel-menu');
 
@@ -402,7 +403,7 @@ class PlacesIndicator {
 
         const personal = this._personalPlaces(seen);
         if (personal.length > 0) {
-            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem('Pessoais'));
+            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(_('Personal')));
             for (const place of personal)
                 menu.addMenuItem(this._placeItem(place));
         }
@@ -410,7 +411,7 @@ class PlacesIndicator {
         if (this._settings.get_boolean('show-place-bookmarks')) {
             const bookmarks = this._bookmarks(seen);
             if (bookmarks.length > 0) {
-                menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem('Marcadores'));
+                menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(_('Bookmarks')));
                 for (const place of bookmarks)
                     menu.addMenuItem(this._placeItem(place));
             }
@@ -419,7 +420,7 @@ class PlacesIndicator {
         if (this._settings.get_boolean('show-place-volumes')) {
             const volumes = this._mountedVolumes(seen);
             if (volumes.length > 0) {
-                menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem('Dispositivos'));
+                menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(_('Devices')));
                 for (const place of volumes)
                     menu.addMenuItem(this._placeItem(place));
             }
@@ -435,7 +436,7 @@ class PlacesIndicator {
     private _personalPlaces(seen: Set<string>): Place[] {
         const places: Place[] = [];
         this._appendUnique(places, seen, {
-            name: 'Pasta pessoal',
+            name: _('Home'),
             uri: Gio.File.new_for_path(GLib.get_home_dir()).get_uri(),
             icon: 'user-home-symbolic',
         });
@@ -535,20 +536,20 @@ class SystemIndicator {
 
     constructor(settings: Gio.Settings) {
         this._settings = settings;
-        this.button = new PanelMenu.Button(0.5, 'Sistema');
+        this.button = new PanelMenu.Button(0.5, _('System'));
         this.button.add_style_class_name('sheliak-panel-indicator');
-        this.button.add_child(panelLabel('Sistema', 'preferences-system-symbolic'));
+        this.button.add_child(panelLabel(_('System'), 'preferences-system-symbolic'));
         const menu = this.button.menu as PopupMenu.PopupMenu;
         menu.actor.add_style_class_name('sheliak-panel-menu');
 
-        const sourceItem = new PopupMenu.PopupImageMenuItem('Código-fonte', 'web-browser-symbolic');
+        const sourceItem = new PopupMenu.PopupImageMenuItem(_('Source Code'), 'github-symbolic');
         sourceItem.connect('activate', () => {
             menu.close();
             openUri(LYRA_SOURCE_URL);
         });
         menu.addMenuItem(sourceItem);
 
-        const reportBugItem = new PopupMenu.PopupImageMenuItem('Reportar erro', 'bug-symbolic');
+        const reportBugItem = new PopupMenu.PopupImageMenuItem(_('Report an Issue'), 'bug-symbolic');
         reportBugItem.connect('activate', () => {
             menu.close();
             openUri(LYRA_ISSUES_URL);
@@ -567,7 +568,7 @@ class SystemIndicator {
         menu.addMenuItem(settingsItem);
 
         if (this._settings.get_boolean('show-system-about')) {
-            const aboutItem = new PopupMenu.PopupImageMenuItem('Sobre', 'help-about-symbolic');
+            const aboutItem = new PopupMenu.PopupImageMenuItem(_('About'), 'help-about-symbolic');
             aboutItem.connect('activate', () => {
                 menu.close();
                 this._openSystemAbout();
@@ -589,7 +590,7 @@ class SystemIndicator {
                 Gio.Subprocess.new(['vega-gtk'], Gio.SubprocessFlags.NONE);
         } catch (error) {
             console.error(`Sheliak: falha ao abrir o Vega: ${error}`);
-            Main.notifyError('Não foi possível abrir o Vega', String(error));
+            Main.notifyError(_('Could not open Vega'), String(error));
         }
     }
 
@@ -598,7 +599,7 @@ class SystemIndicator {
             Gio.Subprocess.new(['gnome-control-center', 'system'], Gio.SubprocessFlags.NONE);
         } catch (error) {
             console.error(`Sheliak: falha ao abrir as informações do sistema: ${error}`);
-            Main.notifyError('Não foi possível abrir as informações do sistema', String(error));
+            Main.notifyError(_('Could not open system information'), String(error));
         }
     }
 }
@@ -616,13 +617,13 @@ class SearchIndicator {
     private _fileConnection: Tracker.SparqlConnection | null | undefined;
 
     constructor() {
-        this.button = new PanelMenu.Button(0.5, 'Buscar', true);
+        this.button = new PanelMenu.Button(0.5, _('Search'), true);
         this.button.add_style_class_name('sheliak-panel-indicator');
         this.button.add_style_class_name('sheliak-search-button');
 
         this._entry = new St.Entry({
             style_class: 'search-entry sheliak-search-entry',
-            hint_text: 'Buscar aplicativos e arquivos…',
+            hint_text: _('Search applications and files…'),
             can_focus: true,
             y_align: Clutter.ActorAlign.CENTER,
             primary_icon: new St.Icon({
@@ -776,7 +777,7 @@ class SearchIndicator {
 
         if (matches.length === 0) {
             this._resultsMenu.addMenuItem(new PopupMenu.PopupMenuItem(
-                'Nenhum resultado encontrado', {reactive: false}));
+                _('No results found'), {reactive: false}));
         } else {
             for (const item of matches) {
                 const menuItem = new PopupMenu.PopupImageMenuItem(item.name, item.icon);

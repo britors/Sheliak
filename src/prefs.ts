@@ -1,7 +1,7 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
-import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {installPreferencesTheme} from './prefsTheme.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.sheliak';
@@ -29,13 +29,13 @@ function addSpin(group: Adw.PreferencesGroup, settings: Gio.Settings,
 
 function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
     const row = new Adw.ActionRow({
-        title: 'Animação ao minimizar',
-        subtitle: 'Efeito usado ao minimizar e restaurar janelas',
+        title: _('Minimize Animation'),
+        subtitle: _('Effect used when minimizing and restoring windows'),
     });
     const values = [
-        ['zoom', 'Zoom ao ícone'],
-        ['fade', 'Desvanecer'],
-        ['none', 'Sem animação'],
+        ['zoom', _('Zoom to Icon')],
+        ['fade', _('Fade')],
+        ['none', _('No Animation')],
     ];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
@@ -50,8 +50,8 @@ function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Setting
 }
 
 function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
-    const row = new Adw.ActionRow({title: 'Posição', subtitle: 'Lado da tela onde o dock aparece'});
-    const values = [['left', 'Esquerda'], ['bottom', 'Inferior'], ['right', 'Direita']];
+    const row = new Adw.ActionRow({title: _('Position'), subtitle: _('Screen edge where the dock appears')});
+    const values = [['left', _('Left')], ['bottom', _('Bottom')], ['right', _('Right')]];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('position')));
@@ -63,8 +63,8 @@ function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
 }
 
 function addContentAlignment(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
-    const row = new Adw.ActionRow({title: 'Alinhamento', subtitle: 'Posição dos favoritos e apps abertos ao longo do dock'});
-    const values = [['start', 'Início'], ['center', 'Centro'], ['end', 'Fim']];
+    const row = new Adw.ActionRow({title: _('Alignment'), subtitle: _('Position of favorites and open applications along the dock')});
+    const values = [['start', _('Start')], ['center', _('Center')], ['end', _('End')]];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('content-alignment')));
@@ -76,8 +76,8 @@ function addContentAlignment(group: Adw.PreferencesGroup, settings: Gio.Settings
 }
 
 function addRunningAppsPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
-    const row = new Adw.ActionRow({title: 'Posição dos apps abertos', subtitle: 'Onde aplicativos em execução aparecem em relação aos favoritos'});
-    const values = [['start', 'Início'], ['end', 'Fim']];
+    const row = new Adw.ActionRow({title: _('Open Applications Position'), subtitle: _('Where running applications appear relative to favorites')});
+    const values = [['start', _('Start')], ['end', _('End')]];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('running-apps-position')));
@@ -90,10 +90,10 @@ function addRunningAppsPosition(group: Adw.PreferencesGroup, settings: Gio.Setti
 
 function addPanelMenuPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
     const row = new Adw.ActionRow({
-        title: 'Posição na barra',
-        subtitle: 'Área da barra superior onde os menus aparecem',
+        title: _('Panel Position'),
+        subtitle: _('Top panel area where the menus appear'),
     });
-    const values = [['left', 'Esquerda'], ['center', 'Centro'], ['right', 'Direita']];
+    const values = [['left', _('Left')], ['center', _('Center')], ['right', _('Right')]];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
     const selected = () => Math.max(0,
@@ -107,11 +107,11 @@ function addPanelMenuPosition(group: Adw.PreferencesGroup, settings: Gio.Setting
 }
 
 function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void {
-    const row = new Adw.ActionRow({title: 'Visibilidade do dock', subtitle: 'Como o dock deve permanecer na tela'});
+    const row = new Adw.ActionRow({title: _('Dock Visibility'), subtitle: _('How the dock should remain on screen')});
     const values = [
-        ['intelligent', 'Ocultação inteligente'],
-        ['autohide', 'Auto hide'],
-        ['always', 'Sempre ativo'],
+        ['intelligent', _('Intelligent Hide')],
+        ['autohide', _('Auto Hide')],
+        ['always', _('Always Visible')],
     ];
     const model = Gtk.StringList.new(values.map(([, label]) => label));
     const combo = new Gtk.DropDown({model, valign: Gtk.Align.CENTER});
@@ -128,84 +128,84 @@ export default class SheliakPreferences extends ExtensionPreferences {
         console.debug('Sheliak: abrindo janela de preferências');
         installPreferencesTheme(window, `${this.path}/prefs.css`);
         const settings = this.getSettings(SCHEMA);
-        const appearance = new Adw.PreferencesPage({title: 'Aparência', icon_name: 'preferences-desktop-theme-symbolic'});
-        const appearanceGroup = new Adw.PreferencesGroup({title: 'Aparência'});
+        const appearance = new Adw.PreferencesPage({title: _('Appearance'), icon_name: 'preferences-desktop-theme-symbolic'});
+        const appearanceGroup = new Adw.PreferencesGroup({title: _('Appearance')});
         addPosition(appearanceGroup, settings);
-        addSpin(appearanceGroup, settings, 'icon-size', 'Tamanho dos ícones', 'Tamanho em pixels', 24, 96, 1);
-        addSpin(appearanceGroup, settings, 'edge-margin', 'Margem da borda', 'Distância em pixels', 0, 48, 1);
-        addSwitch(appearanceGroup, settings, 'animation', 'Animar o dock', 'Animar a entrada e saída do dock');
+        addSpin(appearanceGroup, settings, 'icon-size', _('Icon Size'), _('Size in pixels'), 24, 96, 1);
+        addSpin(appearanceGroup, settings, 'edge-margin', _('Edge Margin'), _('Distance in pixels'), 0, 48, 1);
+        addSwitch(appearanceGroup, settings, 'animation', _('Animate the Dock'), _('Animate the dock appearing and disappearing'));
         addMinimizeAnimation(appearanceGroup, settings);
-        addSwitch(appearanceGroup, settings, 'extend-to-edges', 'Estender até as bordas', 'Ocupar todo o comprimento da borda em vez de se ajustar ao conteúdo');
+        addSwitch(appearanceGroup, settings, 'extend-to-edges', _('Extend to Edges'), _('Use the full length of the edge instead of fitting the content'));
         addContentAlignment(appearanceGroup, settings);
         appearance.add(appearanceGroup);
 
-        const behavior = new Adw.PreferencesPage({title: 'Comportamento', icon_name: 'preferences-system-symbolic'});
-        const behaviorGroup = new Adw.PreferencesGroup({title: 'Comportamento'});
+        const behavior = new Adw.PreferencesPage({title: _('Behavior'), icon_name: 'preferences-system-symbolic'});
+        const behaviorGroup = new Adw.PreferencesGroup({title: _('Behavior')});
         addHideMode(behaviorGroup, settings);
-        addSpin(behaviorGroup, settings, 'hide-delay', 'Atraso para ocultar', 'Após uma janela alcançar o dock, em milissegundos', 100, 3000, 100);
-        addSwitch(behaviorGroup, settings, 'fullscreen-hide', 'Ocultar em tela cheia', 'Não cobrir aplicativos em tela cheia');
+        addSpin(behaviorGroup, settings, 'hide-delay', _('Hide Delay'), _('After a window reaches the dock, in milliseconds'), 100, 3000, 100);
+        addSwitch(behaviorGroup, settings, 'fullscreen-hide', _('Hide in Fullscreen'), _('Do not cover fullscreen applications'));
         behavior.add(behaviorGroup);
 
-        const content = new Adw.PreferencesPage({title: 'Conteúdo', icon_name: 'view-grid-symbolic'});
-        const contentGroup = new Adw.PreferencesGroup({title: 'Elementos exibidos'});
-        addSwitch(contentGroup, settings, 'show-running', 'Aplicativos em execução', 'Mostrar aplicativos que não estão nos favoritos');
+        const content = new Adw.PreferencesPage({title: _('Content'), icon_name: 'view-grid-symbolic'});
+        const contentGroup = new Adw.PreferencesGroup({title: _('Displayed Items')});
+        addSwitch(contentGroup, settings, 'show-running', _('Running Applications'), _('Show applications that are not in favorites'));
         addRunningAppsPosition(contentGroup, settings);
-        addSwitch(contentGroup, settings, 'show-trash', 'Lixeira', 'Mostrar o botão da lixeira');
-        addSwitch(contentGroup, settings, 'show-apps-button', 'Mostrar aplicativos', 'Mostrar o botão da grade de aplicativos');
+        addSwitch(contentGroup, settings, 'show-trash', _('Trash'), _('Show the Trash button'));
+        addSwitch(contentGroup, settings, 'show-apps-button', _('Show Applications'), _('Show the applications grid button'));
         content.add(contentGroup);
 
         const panel = new Adw.PreferencesPage({
-            title: 'Barra superior',
+            title: _('Top Panel'),
             icon_name: 'view-more-symbolic',
         });
-        const topBarGroup = new Adw.PreferencesGroup({title: 'Barra superior'});
-        addSpin(topBarGroup, settings, 'panel-height', 'Tamanho',
-            'Altura da barra em pixels', 24, 64, 1);
-        addSwitch(topBarGroup, settings, 'floating-panel', 'Barra flutuante',
-            'Descolar a barra das bordas, com cantos arredondados e as cores do Lyra');
-        addSpin(topBarGroup, settings, 'panel-margin', 'Margem da barra',
-            'Distância entre a barra flutuante e as bordas da tela, em pixels', 0, 32, 1);
-        addSwitch(topBarGroup, settings, 'show-clock', 'Relógio',
-            'Mostrar data e hora no centro da barra');
-        addSwitch(topBarGroup, settings, 'show-panel-indicators', 'Itens da direita',
-            'Mostrar os indicadores nativos do GNOME');
+        const topBarGroup = new Adw.PreferencesGroup({title: _('Top Panel')});
+        addSpin(topBarGroup, settings, 'panel-height', _('Size'),
+            _('Panel height in pixels'), 24, 64, 1);
+        addSwitch(topBarGroup, settings, 'floating-panel', _('Floating Panel'),
+            _('Detach the panel from the edges, with rounded corners and Lyra colors'));
+        addSpin(topBarGroup, settings, 'panel-margin', _('Panel Margin'),
+            _('Distance between the floating panel and screen edges, in pixels'), 0, 32, 1);
+        addSwitch(topBarGroup, settings, 'show-clock', _('Clock'),
+            _('Show date and time in the center of the panel'));
+        addSwitch(topBarGroup, settings, 'show-panel-indicators', _('Right-side Items'),
+            _('Show native GNOME indicators'));
         panel.add(topBarGroup);
 
-        const panelGroup = new Adw.PreferencesGroup({title: 'Menus do painel'});
-        addSwitch(panelGroup, settings, 'show-applications-menu', 'Menu Aplicativos',
-            'Mostrar aplicativos instalados, organizados por categoria');
-        addSwitch(panelGroup, settings, 'show-places-menu', 'Menu Locais',
-            'Mostrar pastas pessoais, marcadores e dispositivos');
-        addSwitch(panelGroup, settings, 'show-system-menu', 'Menu Sistema',
-            'Mostrar atalhos para as configurações do Vega e a tela Sobre');
-        addSwitch(panelGroup, settings, 'show-search-menu', 'Menu Busca',
-            'Mostrar a caixa de busca de aplicativos e configurações');
+        const panelGroup = new Adw.PreferencesGroup({title: _('Panel Menus')});
+        addSwitch(panelGroup, settings, 'show-applications-menu', _('Applications Menu'),
+            _('Show installed applications organized by category'));
+        addSwitch(panelGroup, settings, 'show-places-menu', _('Places Menu'),
+            _('Show personal folders, bookmarks, and devices'));
+        addSwitch(panelGroup, settings, 'show-system-menu', _('System Menu'),
+            _('Show shortcuts to Vega settings and the About screen'));
+        addSwitch(panelGroup, settings, 'show-search-menu', _('Search Menu'),
+            _('Show the application and settings search box'));
         addSwitch(panelGroup, settings, 'hide-workspace-button',
-            'Ocultar botão de áreas de trabalho',
-            'Remover o botão nativo de áreas de trabalho da barra superior');
+            _('Hide Workspaces Button'),
+            _('Remove the native workspaces button from the top panel'));
         addPanelMenuPosition(panelGroup, settings);
         panel.add(panelGroup);
 
-        const panelContentGroup = new Adw.PreferencesGroup({title: 'Conteúdo dos menus'});
+        const panelContentGroup = new Adw.PreferencesGroup({title: _('Menu Content')});
         addSwitch(panelContentGroup, settings, 'show-application-icons',
-            'Ícones dos aplicativos', 'Mostrar o ícone ao lado do nome de cada aplicativo');
+            _('Application Icons'), _('Show an icon next to each application name'));
         addSwitch(panelContentGroup, settings, 'sort-applications-menu',
-            'Ordem alfabética', 'Ordenar categorias e aplicativos alfabeticamente');
+            _('Alphabetical Order'), _('Sort categories and applications alphabetically'));
         addSwitch(panelContentGroup, settings, 'open-application-submenus-sideways',
-            'Submenus laterais', 'Abrir as categorias de aplicativos ao lado do menu principal');
+            _('Side Submenus'), _('Open application categories beside the main menu'));
         addSwitch(panelContentGroup, settings, 'show-place-bookmarks',
-            'Marcadores em Locais', 'Incluir os marcadores configurados no gerenciador de arquivos');
+            _('Bookmarks in Places'), _('Include bookmarks configured in the file manager'));
         addSwitch(panelContentGroup, settings, 'show-place-volumes',
-            'Dispositivos em Locais', 'Incluir volumes e locais remotos montados');
+            _('Devices in Places'), _('Include mounted volumes and remote locations'));
         addSwitch(panelContentGroup, settings, 'show-system-about',
-            'Item Sobre em Sistema', 'Mostrar o atalho para as informações do sistema instalado');
+            _('About Item in System'), _('Show the installed system information shortcut'));
         panel.add(panelContentGroup);
 
         const about = new Adw.PreferencesPage({
-            name: 'about', title: 'Sobre', icon_name: 'help-about-symbolic',
+            name: 'about', title: _('About'), icon_name: 'help-about-symbolic',
         });
         const aboutGroup = new Adw.PreferencesGroup({title: 'Sheliak'});
-        const aboutRow = new Adw.ActionRow({title: 'Sobre o Sheliak', subtitle: 'Website, reportar erro, créditos e informações legais', activatable: true});
+        const aboutRow = new Adw.ActionRow({title: _('About Sheliak'), subtitle: _('Website, issue reporting, credits, and legal information'), activatable: true});
         aboutRow.connect('activated', () => showAboutDialog(window));
         aboutGroup.add(aboutRow);
         about.add(aboutGroup);
@@ -227,7 +227,7 @@ function showAboutDialog(window: Adw.PreferencesWindow): void {
         website: 'https://github.com/britors/Sheliak',
         issue_url: 'https://github.com/britors/Sheliak/issues',
         license_type: Gtk.License.GPL_3_0,
-        comments: 'Dock nativo do Lyra OS para o GNOME Shell.',
+        comments: _('Native Lyra OS dock for GNOME Shell.'),
         copyright: '© 2026 Lyra OS',
     });
     dialog.set_developers(['Rodrigo Brito']);

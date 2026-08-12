@@ -3,6 +3,9 @@
  * sob .sheliak-preferences para nao alterar as janelas de outras extensoes.
  * As classes lyra-light e lyra-dark sao sincronizadas com o AdwStyleManager.
  */
+window.sheliak-preferences {
+  font-family: "Noto Sans CJK SC", "Noto Sans", sans-serif;
+}
 
 /* Variante clara */
 window.sheliak-preferences.lyra-light,

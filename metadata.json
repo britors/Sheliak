@@ -1,7 +1,8 @@
 {
   "uuid": "sheliak@lyraos.org",
   "name": "Sheliak",
-  "description": "Dock nativo do ecossistema Lyra para o GNOME Shell",
+  "description": "Native Lyra ecosystem dock for GNOME Shell",
+  "gettext-domain": "sheliak",
   "shell-version": ["48"],
   "version": 22,
   "url": "https://github.com/britors/Sheliak"

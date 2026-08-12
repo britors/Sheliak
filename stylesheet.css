@@ -4,6 +4,13 @@
  * .light-theme tracks org.gnome.desktop.interface color-scheme independently
  * of .lyra-theme, so the dock follows the system light/dark preference.
  */
+.sheliak-dock,
+.sheliak-panel-menu,
+.sheliak-search-entry,
+.sheliak-tooltip {
+  font-family: "Noto Sans CJK SC", "Noto Sans", sans-serif;
+}
+
 .sheliak-dock {
   spacing: 6px;
   padding: 6px 10px;

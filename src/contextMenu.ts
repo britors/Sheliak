@@ -5,6 +5,7 @@ import Meta from 'gi://Meta';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export class AppContextMenu {
     readonly menu: PopupMenu.PopupMenu;
@@ -24,7 +25,7 @@ export class AppContextMenu {
         this.menu.removeAll();
 
         if (this._app.can_open_new_window()) {
-            this.menu.addAction('Abrir nova janela', () =>
+            this.menu.addAction(_('Open New Window'), () =>
                 this._app.open_new_window(-1));
         }
 
@@ -32,7 +33,7 @@ export class AppContextMenu {
         if (id && !this._app.is_window_backed()) {
             const favorite = this._favorites.isFavorite(id);
             this.menu.addAction(
-                favorite ? 'Desafixar dos favoritos' : 'Fixar nos favoritos',
+                favorite ? _('Remove from Favorites') : _('Add to Favorites'),
                 () => favorite
                     ? this._favorites.removeFavorite(id)
                     : this._favorites.addFavorite(id),
@@ -51,7 +52,7 @@ export class AppContextMenu {
 
         if (windows.length > 0) {
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addAction('Sair', () => {
+            this.menu.addAction(_('Quit'), () => {
                 for (const window of this._windows())
                     window.delete(global.get_current_time());
             });
