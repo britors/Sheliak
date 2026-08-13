@@ -57,8 +57,8 @@ const metadata = JSON.parse(readFileSync('metadata.json', 'utf8'));
 assert.equal(metadata['gettext-domain'], 'sheliak');
 assert.match(readFileSync('src/showAppsButton.ts', 'utf8'), /accessible_name: _\('Show Applications'\)/);
 assert.match(readFileSync('src/trashIcon.ts', 'utf8'), /accessible_name: _\('Trash'\)/);
-assert.match(sources, /PopupImageMenuItem\(_\('Source Code'\), 'github-symbolic'\)/);
-assert.match(sources, /PopupImageMenuItem\(_\('Report an Issue'\), 'bug-symbolic'\)/);
+assert.match(sources, /_\('Source Code'\), 'applications-engineering-symbolic'/);
+assert.match(sources, /_\('Report an Issue'\), 'dialog-warning-symbolic'/);
 assert.doesNotMatch(sources, /(?:title|subtitle|label|text|accessible_name|hint_text):\s*['"][^'"]*[À-ÿ]/);
 
 const spec = readFileSync('packaging/sheliak.spec', 'utf8');

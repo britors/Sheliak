@@ -547,14 +547,16 @@ class SystemIndicator {
         const menu = this.button.menu as PopupMenu.PopupMenu;
         menu.actor.add_style_class_name('sheliak-panel-menu');
 
-        const sourceItem = new PopupMenu.PopupImageMenuItem(_('Source Code'), 'github-symbolic');
+        const sourceItem = new PopupMenu.PopupImageMenuItem(
+            _('Source Code'), 'applications-engineering-symbolic');
         sourceItem.connect('activate', () => {
             menu.close();
             openUri(LYRA_SOURCE_URL);
         });
         menu.addMenuItem(sourceItem);
 
-        const reportBugItem = new PopupMenu.PopupImageMenuItem(_('Report an Issue'), 'bug-symbolic');
+        const reportBugItem = new PopupMenu.PopupImageMenuItem(
+            _('Report an Issue'), 'dialog-warning-symbolic');
         reportBugItem.connect('activate', () => {
             menu.close();
             openUri(LYRA_ISSUES_URL);
