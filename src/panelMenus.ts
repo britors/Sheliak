@@ -43,28 +43,32 @@ type SearchItem = {
 const LYRA_SOURCE_URL = 'https://github.com/britors/lyra';
 const LYRA_ISSUES_URL = 'https://github.com/britors/Lyra/issues';
 
-const APP_CATEGORIES = [
-    {id: 'AudioVideo', label: _('Multimedia'), icon: 'applications-multimedia-symbolic'},
-    {id: 'Development', label: _('Development'), icon: 'applications-engineering-symbolic'},
-    {id: 'Education', label: _('Education'), icon: 'accessories-dictionary-symbolic'},
-    {id: 'Game', label: _('Games'), icon: 'applications-games-symbolic'},
-    {id: 'Graphics', label: _('Graphics'), icon: 'applications-graphics-symbolic'},
-    {id: 'Network', label: _('Internet'), icon: 'web-browser-symbolic'},
-    {id: 'Office', label: _('Office'), icon: 'x-office-document-symbolic'},
-    {id: 'Science', label: _('Science'), icon: 'applications-science-symbolic'},
-    {id: 'Settings', label: _('Settings'), icon: 'preferences-system-symbolic'},
-    {id: 'System', label: _('System'), icon: 'applications-system-symbolic'},
-    {id: 'Utility', label: _('Utilities'), icon: 'applications-utilities-symbolic'},
-] as const;
+function applicationCategories() {
+    return [
+        {id: 'AudioVideo', label: _('Multimedia'), icon: 'applications-multimedia-symbolic'},
+        {id: 'Development', label: _('Development'), icon: 'applications-engineering-symbolic'},
+        {id: 'Education', label: _('Education'), icon: 'accessories-dictionary-symbolic'},
+        {id: 'Game', label: _('Games'), icon: 'applications-games-symbolic'},
+        {id: 'Graphics', label: _('Graphics'), icon: 'applications-graphics-symbolic'},
+        {id: 'Network', label: _('Internet'), icon: 'web-browser-symbolic'},
+        {id: 'Office', label: _('Office'), icon: 'x-office-document-symbolic'},
+        {id: 'Science', label: _('Science'), icon: 'applications-science-symbolic'},
+        {id: 'Settings', label: _('Settings'), icon: 'preferences-system-symbolic'},
+        {id: 'System', label: _('System'), icon: 'applications-system-symbolic'},
+        {id: 'Utility', label: _('Utilities'), icon: 'applications-utilities-symbolic'},
+    ] as const;
+}
 
-const SPECIAL_DIRECTORIES: Array<[GLib.UserDirectory, string, string]> = [
-    [GLib.UserDirectory.DIRECTORY_DESKTOP, _('Desktop'), 'user-desktop-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_DOCUMENTS, _('Documents'), 'folder-documents-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_DOWNLOAD, _('Downloads'), 'folder-download-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_MUSIC, _('Music'), 'folder-music-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_PICTURES, _('Pictures'), 'folder-pictures-symbolic'],
-    [GLib.UserDirectory.DIRECTORY_VIDEOS, _('Videos'), 'folder-videos-symbolic'],
-];
+function specialDirectories(): Array<[GLib.UserDirectory, string, string]> {
+    return [
+        [GLib.UserDirectory.DIRECTORY_DESKTOP, _('Desktop'), 'user-desktop-symbolic'],
+        [GLib.UserDirectory.DIRECTORY_DOCUMENTS, _('Documents'), 'folder-documents-symbolic'],
+        [GLib.UserDirectory.DIRECTORY_DOWNLOAD, _('Downloads'), 'folder-download-symbolic'],
+        [GLib.UserDirectory.DIRECTORY_MUSIC, _('Music'), 'folder-music-symbolic'],
+        [GLib.UserDirectory.DIRECTORY_PICTURES, _('Pictures'), 'folder-pictures-symbolic'],
+        [GLib.UserDirectory.DIRECTORY_VIDEOS, _('Videos'), 'folder-videos-symbolic'],
+    ];
+}
 
 function alphabeticalCompare(a: string, b: string): number {
     return a.localeCompare(b, undefined, {sensitivity: 'base'});
@@ -207,8 +211,9 @@ class ApplicationsIndicator {
         this._destroyCategoryMenus();
         menu.removeAll();
 
+        const appCategories = applicationCategories();
         const groups = new Map<string, ApplicationInfo[]>();
-        for (const category of APP_CATEGORIES)
+        for (const category of appCategories)
             groups.set(category.id, []);
         groups.set('Other', []);
 
@@ -221,7 +226,7 @@ class ApplicationsIndicator {
 
             const rawCategories = appInfo.get_categories?.() ?? '';
             const categories = new Set(rawCategories.split(';').filter(Boolean));
-            const category = APP_CATEGORIES.find(item => categories.has(item.id));
+            const category = appCategories.find(item => categories.has(item.id));
             groups.get(category?.id ?? 'Other')?.push(appInfo);
         }
 
@@ -229,7 +234,7 @@ class ApplicationsIndicator {
         const sortAlphabetically = this._settings.get_boolean('sort-applications-menu');
         const openSideways = this._settings.get_boolean(
             'open-application-submenus-sideways');
-        const categories = [...APP_CATEGORIES,
+        const categories = [...appCategories,
             {id: 'Other', label: _('Other'), icon: 'applications-other-symbolic'}];
         if (sortAlphabetically)
             categories.sort((a, b) => alphabeticalCompare(a.label, b.label));
@@ -441,7 +446,7 @@ class PlacesIndicator {
             icon: 'user-home-symbolic',
         });
 
-        for (const [directory, name, icon] of SPECIAL_DIRECTORIES) {
+        for (const [directory, name, icon] of specialDirectories()) {
             const path = GLib.get_user_special_dir(directory);
             if (!path)
                 continue;
