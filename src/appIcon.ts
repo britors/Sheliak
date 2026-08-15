@@ -216,6 +216,10 @@ export class AppIcon {
     }
 
     destroy(): void {
+        // A favorites change rebuilds the dock synchronously from the menu
+        // action. Close the menu while its open-state signal is still
+        // connected so Dock can release the visibility hold.
+        this.menu.close();
         this._signals.destroy();
         this.menu.destroy();
         this.actor.destroy();
