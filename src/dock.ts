@@ -14,6 +14,7 @@ import {AppIcon} from './appIcon.js';
 import {LauncherEntryTracker} from './launcherEntries.js';
 import {ShowAppsButton} from './showAppsButton.js';
 import {SignalTracker} from './signals.js';
+import {shellIsStartingUp} from './shellCompat.js';
 import {DockSide, TooltipManager} from './tooltip.js';
 import {TrashIcon} from './trashIcon.js';
 
@@ -50,6 +51,9 @@ export class Dock {
     private _startupCompleteId = 0;
     private _dragPlaceholder: St.Widget | null = null;
     private _dragPlaceholderPos = -1;
+    private _favoriteLaterId = 0;
+    private _trackedWindows = new Map<Meta.Window, number[]>();
+    private _destroyed = false;
 
     constructor(settings?: Gio.Settings, extensionPath?: string) {
         console.debug('Sheliak: construindo dock');
@@ -154,7 +158,7 @@ export class Dock {
         });
         this._signals.connect(Main.layoutManager, 'monitors-changed',
             () => this._relayout());
-        if (Main.layoutManager._startingUp) {
+        if (shellIsStartingUp()) {
             this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
                 console.debug('Sheliak: startup-complete, atualizando lançadores');
                 Main.layoutManager.disconnect(this._startupCompleteId);
@@ -204,6 +208,7 @@ export class Dock {
 
     destroy(): void {
         console.debug('Sheliak: destruindo dock');
+        this._destroyed = true;
         if (this._hideTimeoutId) {
             GLib.source_remove(this._hideTimeoutId);
             this._hideTimeoutId = 0;
@@ -215,6 +220,10 @@ export class Dock {
         if (this._startupCompleteId) {
             Main.layoutManager.disconnect(this._startupCompleteId);
             this._startupCompleteId = 0;
+        }
+        if (this._favoriteLaterId) {
+            global.compositor.get_laters().remove(this._favoriteLaterId);
+            this._favoriteLaterId = 0;
         }
         this._signals.destroy();
         this._launcherEntries.destroy();
@@ -375,8 +384,12 @@ export class Dock {
         this._clearDragPlaceholder();
 
         const laters = global.compositor.get_laters();
-        laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
-            this._favorites.moveFavoriteToPos(id, pos);
+        if (this._favoriteLaterId)
+            laters.remove(this._favoriteLaterId);
+        this._favoriteLaterId = laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+            this._favoriteLaterId = 0;
+            if (!this._destroyed)
+                this._favorites.moveFavoriteToPos(id, pos);
             return GLib.SOURCE_REMOVE;
         });
 
@@ -413,17 +426,29 @@ export class Dock {
         this._hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
             this._settings.get_uint('hide-delay'), () => {
                 this._hideTimeoutId = 0;
-                if (this._windowOverlapsDock())
+                const currentMode = this._settings.get_string('hide-mode');
+                if (currentMode === 'autohide' ||
+                    (currentMode === 'intelligent' && this._windowOverlapsDock()))
                     this._setHidden(true);
                 return GLib.SOURCE_REMOVE;
             });
     }
 
     private _trackWindow(window: Meta.Window): void {
+        if (this._trackedWindows.has(window))
+            return;
+        const ids: number[] = [];
         for (const signal of ['position-changed', 'size-changed',
             'workspace-changed', 'notify::minimized']) {
-            this._signals.connect(window, signal, () => this._syncVisibility());
+            ids.push(this._signals.connect(window, signal, () => this._syncVisibility()));
         }
+        ids.push(this._signals.connect(window, 'unmanaged', () => {
+            for (const id of this._trackedWindows.get(window) ?? [])
+                this._signals.disconnect(window, id);
+            this._trackedWindows.delete(window);
+            this._syncVisibility();
+        }));
+        this._trackedWindows.set(window, ids);
     }
 
     private _windowOverlapsDock(): boolean {

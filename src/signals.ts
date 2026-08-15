@@ -16,6 +16,19 @@ export class SignalTracker {
         return id;
     }
 
+    disconnect(object: SignalObject, id: number): void {
+        const index = this._signals.findIndex(([source, signalId]) =>
+            source === object && signalId === id);
+        if (index === -1)
+            return;
+        this._signals.splice(index, 1);
+        try {
+            object.disconnect(id);
+        } catch {
+            // The signal source may already have been finalized.
+        }
+    }
+
     destroy(): void {
         for (const [object, id] of this._signals.splice(0)) {
             try {

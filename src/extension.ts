@@ -8,6 +8,7 @@ import {Dock} from './dock.js';
 import {WindowAnimationManager} from './windowAnimations.js';
 import {PanelMenus} from './panelMenus.js';
 import {TopBarManager} from './topBar.js';
+import {shellIsStartingUp, UnsupportedShellFeature} from './shellCompat.js';
 
 type PanelActor = {
     visible: boolean;
@@ -24,40 +25,61 @@ export default class SheliakExtension extends Extension {
     private _hideWorkspaceButtonSignal = 0;
     private _startupCompleteSignal = 0;
     private _sessionHadOverview: boolean | null = null;
-    private _dashWasVisible = true;
+    private _dashWasVisible: boolean | null = null;
     private _activitiesButton: PanelActor | null = null;
     private _activitiesButtonWasVisible = false;
 
     enable(): void {
         console.debug(`Sheliak: enable() em ${this.uuid}`);
-        this._prepareDesktopStartup();
-        this._settings = this.getSettings('org.gnome.shell.extensions.sheliak');
-        this._dock = new Dock(this._settings, this.path);
-        this._windowAnimations = new WindowAnimationManager(this._settings);
-        this._panelMenus = new PanelMenus(this._settings, this.path);
-        this._topBar = new TopBarManager(this._settings);
-        // Sheliak substitui o dash padrão; mantê-lo visível duplicaria os
-        // favoritos/apps em execução na Overview.
-        this._dashWasVisible = Main.overview.dash.visible;
-        Main.overview.dash.hide();
+        try {
+            this._prepareDesktopStartup();
+            this._settings = this.getSettings('org.gnome.shell.extensions.sheliak');
+            this._dock = new Dock(this._settings, this.path);
+            this._windowAnimations = new WindowAnimationManager(this._settings);
+            this._panelMenus = new PanelMenus(this._settings, this.path);
+            try {
+                this._topBar = new TopBarManager(this._settings);
+            } catch (error) {
+                if (!(error instanceof UnsupportedShellFeature))
+                    throw error;
+                console.warn(`Sheliak: barra superior desativada: ${error.message}`);
+            }
+            // Sheliak substitui o dash padrão; mantê-lo visível duplicaria os
+            // favoritos/apps em execução na Overview.
+            this._dashWasVisible = Main.overview.dash.visible;
+            Main.overview.dash.hide();
 
-        // No GNOME Shell 48, o indicador de área de trabalho do painel é
-        // registrado como "activities". Apenas ocultá-lo permite restaurar o
-        // estado anterior sem recriar componentes internos do Shell.
-        const statusArea = Main.panel.statusArea as unknown as Record<string, PanelActor>;
-        this._activitiesButton = statusArea.activities ?? null;
-        this._activitiesButtonWasVisible = this._activitiesButton?.visible ?? false;
-        this._hideWorkspaceButtonSignal = this._settings.connect(
-            'changed::hide-workspace-button', () => this._syncWorkspaceButton());
-        this._syncWorkspaceButton();
-        console.debug('Sheliak: dock criado e habilitado');
+            // No GNOME Shell 48, o indicador de área de trabalho do painel é
+            // registrado como "activities". Apenas ocultá-lo permite restaurar o
+            // estado anterior sem recriar componentes internos do Shell.
+            const statusArea = Main.panel.statusArea as unknown as Record<string, PanelActor>;
+            this._activitiesButton = statusArea.activities ?? null;
+            this._activitiesButtonWasVisible = this._activitiesButton?.visible ?? false;
+            this._hideWorkspaceButtonSignal = this._settings.connect(
+                'changed::hide-workspace-button', () => this._syncWorkspaceButton());
+            this._syncWorkspaceButton();
+            console.debug('Sheliak: dock criado e habilitado');
+        } catch (error) {
+            console.error(`Sheliak: falha na ativação; revertendo alterações: ${error}`);
+            this._teardown();
+        }
     }
 
     disable(): void {
         console.debug(`Sheliak: disable() em ${this.uuid}`);
+        this._teardown();
+        console.debug('Sheliak: dock destruído');
+    }
+
+    private _teardown(): void {
         this._restoreDesktopStartup();
-        if (this._dashWasVisible)
-            Main.overview.dash.show();
+        if (this._dashWasVisible !== null) {
+            if (this._dashWasVisible)
+                Main.overview.dash.show();
+            else
+                Main.overview.dash.hide();
+            this._dashWasVisible = null;
+        }
         if (this._settings && this._hideWorkspaceButtonSignal)
             this._settings.disconnect(this._hideWorkspaceButtonSignal);
         this._hideWorkspaceButtonSignal = 0;
@@ -65,16 +87,23 @@ export default class SheliakExtension extends Extension {
             this._activitiesButton?.show();
         this._activitiesButton = null;
         this._activitiesButtonWasVisible = false;
-        this._topBar?.destroy();
+        this._destroyComponent('barra superior', this._topBar);
         this._topBar = null;
-        this._panelMenus?.destroy();
+        this._destroyComponent('menus do painel', this._panelMenus);
         this._panelMenus = null;
-        this._windowAnimations?.destroy();
+        this._destroyComponent('animações', this._windowAnimations);
         this._windowAnimations = null;
-        this._dock?.destroy();
+        this._destroyComponent('dock', this._dock);
         this._dock = null;
         this._settings = null;
-        console.debug('Sheliak: dock destruído');
+    }
+
+    private _destroyComponent(name: string, component: {destroy(): void} | null): void {
+        try {
+            component?.destroy();
+        } catch (error) {
+            console.error(`Sheliak: falha ao desmontar ${name}: ${error}`);
+        }
     }
 
     private _syncWorkspaceButton(): void {
@@ -85,7 +114,7 @@ export default class SheliakExtension extends Extension {
     }
 
     private _prepareDesktopStartup(): void {
-        if (!Main.layoutManager._startingUp)
+        if (!shellIsStartingUp())
             return;
 
         // O Shell usa hasOverview para decidir entre iniciar na Overview ou

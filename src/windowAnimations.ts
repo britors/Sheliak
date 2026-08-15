@@ -152,6 +152,14 @@ export class WindowAnimationManager {
                 this._nativeSignalIds = [];
                 return;
             }
+            if (this._nativeSignalIds.includes(handlerId) ||
+                !GObject.signal_handler_is_connected(this._shellwm as never, handlerId)) {
+                console.error(`Sheliak: manipulador nativo de ${signalId} não é seguro; usando animação nativa`);
+                for (const id of this._nativeSignalIds)
+                    this._shellwm.unblock_signal_handler(id);
+                this._nativeSignalIds = [];
+                return;
+            }
             this._shellwm.block_signal_handler(handlerId);
             this._nativeSignalIds.push(handlerId);
         }
@@ -160,7 +168,6 @@ export class WindowAnimationManager {
             this._animate(actor, true);
         }));
         this._signalIds.push(this._shellwm.connect('unminimize', (_wm, actor) => {
-            actor.show();
             this._animate(actor, false);
         }));
         this._signalIds.push(this._shellwm.connect('kill-window-effects', (_wm, actor) => {
@@ -177,12 +184,18 @@ export class WindowAnimationManager {
             shellComplete(completedActor);
         };
 
+        // Settle the compositor event already in flight before preparing the
+        // opposite state. In particular, completed_minimize() may hide the
+        // actor, so show it only after settling when restoring rapidly.
+        this._destroyActorEffects(actor);
+        if (!minimizing)
+            actor.show();
+
         if (Main.overview.visible || !St.Settings.get().enable_animations) {
             complete(actor);
             return;
         }
 
-        this._destroyActorEffects(actor);
         const mode = this._animationMode();
         if (mode === 'none') {
             complete(actor);

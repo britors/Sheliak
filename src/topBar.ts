@@ -6,6 +6,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {SignalTracker} from './signals.js';
+import {panelRightBox} from './shellCompat.js';
 
 const SHELIAK_PANEL_INDICATOR = 'sheliak-panel-indicator';
 const FLOATING_PANEL_CLASS = 'sheliak-panel-floating';
@@ -15,10 +16,6 @@ const SHELL_THEME_CLASS = 'sheliak-shell-theme';
 const SHELL_LIGHT_THEME_CLASS = 'sheliak-shell-light-theme';
 const PANEL_MENU_CLASS = 'sheliak-panel-menu';
 const MAX_PANEL_MARGIN = 32;
-
-type PanelInternals = {
-    _rightBox: Clutter.Actor;
-};
 
 type VisibleActor = Clutter.Actor & {
     visible: boolean;
@@ -48,14 +45,37 @@ export class TopBarManager {
     private _nativeIndicators = new Map<VisibleActor, boolean>();
     private _panelMenuActors = new Set<St.Widget>();
     private _trackedWindows = new Set<Meta.Window>();
+    private _windowSignals = new Map<Meta.Window, number[]>();
     private _flush = false;
+    private _ownedHeight: number | null = null;
+    private _ownedMargins: [number, number, number, number] | null = null;
+    private _panelState: {
+        height: number;
+        margins: [number, number, number, number];
+        floating: boolean;
+        flush: boolean;
+        light: boolean;
+        shellTheme: boolean;
+        shellLight: boolean;
+    };
 
     constructor(settings: Gio.Settings) {
         this._settings = settings;
         const statusArea = Main.panel.statusArea as unknown as Record<string, VisibleActor>;
         this._dateMenu = statusArea.dateMenu ?? null;
         this._dateMenuWasVisible = this._dateMenu?.visible ?? false;
-        this._rightBox = (Main.panel as unknown as PanelInternals)._rightBox;
+        this._rightBox = panelRightBox();
+        const panel = Main.panel;
+        this._panelState = {
+            height: panel.height,
+            margins: [panel.margin_top, panel.margin_bottom,
+                panel.margin_left, panel.margin_right],
+            floating: panel.has_style_class_name(FLOATING_PANEL_CLASS),
+            flush: panel.has_style_class_name(FLUSH_PANEL_CLASS),
+            light: panel.has_style_class_name(LIGHT_THEME_CLASS),
+            shellTheme: Main.uiGroup.has_style_class_name(SHELL_THEME_CLASS),
+            shellLight: Main.uiGroup.has_style_class_name(SHELL_LIGHT_THEME_CLASS),
+        };
 
         for (const actor of this._rightBox.get_children()) {
             this._trackNativeIndicator(actor);
@@ -102,8 +122,18 @@ export class TopBarManager {
 
     destroy(): void {
         this._signals.destroy();
-        this._resetFloating();
-        Main.panel.set_height(-1);
+        const panel = Main.panel;
+        if (this._ownedHeight !== null && panel.height === this._ownedHeight)
+            panel.set_height(this._panelState.height);
+        if (this._ownedMargins && this._marginsEqual(panel, this._ownedMargins)) {
+            [panel.margin_top, panel.margin_bottom, panel.margin_left, panel.margin_right] =
+                this._panelState.margins;
+        }
+        this._restoreStyle(panel, FLOATING_PANEL_CLASS, this._panelState.floating);
+        this._restoreStyle(panel, FLUSH_PANEL_CLASS, this._panelState.flush);
+        this._restoreStyle(panel, LIGHT_THEME_CLASS, this._panelState.light);
+        this._restoreStyle(Main.uiGroup, SHELL_THEME_CLASS, this._panelState.shellTheme);
+        this._restoreStyle(Main.uiGroup, SHELL_LIGHT_THEME_CLASS, this._panelState.shellLight);
         if (this._dateMenuWasVisible)
             this._dateMenu?.show();
         for (const [actor, wasVisible] of this._nativeIndicators) {
@@ -117,6 +147,7 @@ export class TopBarManager {
         }
         this._panelMenuActors.clear();
         this._trackedWindows.clear();
+        this._windowSignals.clear();
         this._dateMenu = null;
     }
 
@@ -155,8 +186,9 @@ export class TopBarManager {
     }
 
     private _syncHeight(): void {
-        Main.panel.set_height(Math.max(24, Math.min(64,
-            this._settings.get_uint('panel-height'))));
+        this._ownedHeight = Math.max(24, Math.min(64,
+            this._settings.get_uint('panel-height')));
+        Main.panel.set_height(this._ownedHeight);
     }
 
     /**
@@ -186,6 +218,7 @@ export class TopBarManager {
         panel.margin_bottom = margin;
         panel.margin_left = margin;
         panel.margin_right = margin;
+        this._ownedMargins = [margin, margin, margin, margin];
         panel.add_style_class_name(FLOATING_PANEL_CLASS);
         Main.uiGroup.add_style_class_name(SHELL_THEME_CLASS);
         if (flush)
@@ -215,6 +248,7 @@ export class TopBarManager {
         panel.margin_bottom = 0;
         panel.margin_left = 0;
         panel.margin_right = 0;
+        this._ownedMargins = [0, 0, 0, 0];
         panel.remove_style_class_name(FLOATING_PANEL_CLASS);
         panel.remove_style_class_name(FLUSH_PANEL_CLASS);
         panel.remove_style_class_name(LIGHT_THEME_CLASS);
@@ -226,10 +260,32 @@ export class TopBarManager {
         if (this._trackedWindows.has(window))
             return;
         this._trackedWindows.add(window);
+        const ids: number[] = [];
         for (const signal of ['notify::maximized-horizontally',
             'notify::maximized-vertically', 'workspace-changed', 'notify::minimized']) {
-            this._signals.connect(window, signal, () => this._syncFloating());
+            ids.push(this._signals.connect(window, signal, () => this._syncFloating()));
         }
+        ids.push(this._signals.connect(window, 'unmanaged', () => {
+            for (const id of this._windowSignals.get(window) ?? [])
+                this._signals.disconnect(window, id);
+            this._windowSignals.delete(window);
+            this._trackedWindows.delete(window);
+            this._syncFloating();
+        }));
+        this._windowSignals.set(window, ids);
+    }
+
+    private _restoreStyle(actor: St.Widget, styleClass: string, present: boolean): void {
+        if (present)
+            actor.add_style_class_name(styleClass);
+        else
+            actor.remove_style_class_name(styleClass);
+    }
+
+    private _marginsEqual(actor: Clutter.Actor,
+        margins: [number, number, number, number]): boolean {
+        return actor.margin_top === margins[0] && actor.margin_bottom === margins[1]
+            && actor.margin_left === margins[2] && actor.margin_right === margins[3];
     }
 
     private _hasMaximizedWindow(): boolean {

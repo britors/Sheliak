@@ -6,6 +6,15 @@ import {installPreferencesTheme} from './prefsTheme.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.sheliak';
 
+function connectForWidget(settings: Gio.Settings, signal: string,
+    widget: Gtk.Widget, callback: () => void): void {
+    const id = settings.connect(signal, callback);
+    widget.connect('destroy', () => {
+        if (id)
+            settings.disconnect(id);
+    });
+}
+
 function addSwitch(group: Adw.PreferencesGroup, settings: Gio.Settings,
     key: string, title: string, subtitle: string): void {
     const row = new Adw.ActionRow({title, subtitle});
@@ -44,7 +53,8 @@ function addMinimizeAnimation(group: Adw.PreferencesGroup, settings: Gio.Setting
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string(
         'minimize-animation', values[combo.selected]?.[0] ?? 'zoom'));
-    settings.connect('changed::minimize-animation', () => combo.set_selected(selected()));
+    connectForWidget(settings, 'changed::minimize-animation', combo,
+        () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
 }
@@ -57,7 +67,8 @@ function addPosition(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('position')));
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string('position', values[combo.selected]?.[0] ?? 'left'));
-    settings.connect('changed::position', () => combo.set_selected(selected()));
+    connectForWidget(settings, 'changed::position', combo,
+        () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
 }
@@ -70,7 +81,8 @@ function addContentAlignment(group: Adw.PreferencesGroup, settings: Gio.Settings
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('content-alignment')));
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string('content-alignment', values[combo.selected]?.[0] ?? 'center'));
-    settings.connect('changed::content-alignment', () => combo.set_selected(selected()));
+    connectForWidget(settings, 'changed::content-alignment', combo,
+        () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
 }
@@ -83,7 +95,8 @@ function addRunningAppsPosition(group: Adw.PreferencesGroup, settings: Gio.Setti
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('running-apps-position')));
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string('running-apps-position', values[combo.selected]?.[0] ?? 'end'));
-    settings.connect('changed::running-apps-position', () => combo.set_selected(selected()));
+    connectForWidget(settings, 'changed::running-apps-position', combo,
+        () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
 }
@@ -101,7 +114,8 @@ function addPanelMenuPosition(group: Adw.PreferencesGroup, settings: Gio.Setting
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string(
         'panel-menu-position', values[combo.selected]?.[0] ?? 'left'));
-    settings.connect('changed::panel-menu-position', () => combo.set_selected(selected()));
+    connectForWidget(settings, 'changed::panel-menu-position', combo,
+        () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
 }
@@ -118,7 +132,8 @@ function addHideMode(group: Adw.PreferencesGroup, settings: Gio.Settings): void 
     const selected = () => Math.max(0, values.findIndex(([id]) => id === settings.get_string('hide-mode')));
     combo.selected = selected();
     combo.connect('notify::selected', () => settings.set_string('hide-mode', values[combo.selected]?.[0] ?? 'intelligent'));
-    settings.connect('changed::hide-mode', () => combo.set_selected(selected()));
+    connectForWidget(settings, 'changed::hide-mode', combo,
+        () => combo.set_selected(selected()));
     row.add_suffix(combo);
     group.add(row);
 }
@@ -206,7 +221,8 @@ export default class SheliakPreferences extends ExtensionPreferences {
         });
         const aboutGroup = new Adw.PreferencesGroup({title: 'Sheliak'});
         const aboutRow = new Adw.ActionRow({title: _('About Sheliak'), subtitle: _('Website, issue reporting, credits, and legal information'), activatable: true});
-        aboutRow.connect('activated', () => showAboutDialog(window));
+        aboutRow.connect('activated', () => showAboutDialog(window,
+            String(this.metadata['version-name'] ?? this.metadata.version)));
         aboutGroup.add(aboutRow);
         about.add(aboutGroup);
 
@@ -218,12 +234,12 @@ export default class SheliakPreferences extends ExtensionPreferences {
     }
 }
 
-function showAboutDialog(window: Adw.PreferencesWindow): void {
+function showAboutDialog(window: Adw.PreferencesWindow, version: string): void {
     const dialog = new Adw.AboutDialog({
         application_name: 'Sheliak',
         application_icon: 'folder-download-symbolic',
         developer_name: 'Lyra OS',
-        version: '1.9.0',
+        version,
         website: 'https://github.com/britors/Sheliak',
         issue_url: 'https://github.com/britors/Sheliak/issues',
         license_type: Gtk.License.GPL_3_0,

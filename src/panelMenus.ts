@@ -14,6 +14,7 @@ import {SignalTracker} from './signals.js';
 
 Gio._promisify(Tracker.SparqlConnection.prototype, 'query_async', 'query_finish');
 Gio._promisify(Tracker.SparqlCursor.prototype, 'next_async', 'next_finish');
+Gio._promisify(Gio.File.prototype, 'query_info_async', 'query_info_finish');
 
 const FILE_SEARCH_SERVICE = 'org.freedesktop.Tracker3.Miner.Files';
 const FILE_SEARCH_LIMIT = 5;
@@ -622,6 +623,9 @@ class SearchIndicator {
     private _topResult: SearchItem | null = null;
     private _stageClickId = 0;
     private _fileConnection: Tracker.SparqlConnection | null | undefined;
+    private _searchCancellable: Gio.Cancellable | null = null;
+    private _searchGeneration = 0;
+    private _destroyed = false;
 
     constructor() {
         this.button = new PanelMenu.Button(0.5, _('Search'), true);
@@ -679,6 +683,10 @@ class SearchIndicator {
     }
 
     destroy(): void {
+        this._destroyed = true;
+        this._searchGeneration++;
+        this._searchCancellable?.cancel();
+        this._searchCancellable = null;
         this._signals.destroy();
         this._disconnectStageClick();
         this._resultsMenu.destroy();
@@ -737,6 +745,8 @@ class SearchIndicator {
     }
 
     private _updateResults(): void {
+        this._searchCancellable?.cancel();
+        this._searchCancellable = null;
         const query = this._entry.get_text().trim().toLowerCase();
         this._clearIcon.visible = this._entry.get_text().length > 0;
 
@@ -755,14 +765,23 @@ class SearchIndicator {
         const appMatches = this._matchIndex(query);
         this._renderMatches(appMatches.slice(0, 8));
 
-        this._searchFiles(query).then(fileMatches => {
+        const generation = ++this._searchGeneration;
+        const cancellable = new Gio.Cancellable();
+        this._searchCancellable = cancellable;
+        this._searchFiles(query, cancellable).then(fileMatches => {
+            if (this._destroyed || generation !== this._searchGeneration)
+                return;
             if (fileMatches.length === 0)
                 return;
             if (this._entry.get_text().trim().toLowerCase() !== query)
                 return;
             this._renderMatches([...appMatches, ...fileMatches].slice(0, 8));
         }).catch((error: unknown) => {
-            console.debug(`Sheliak: busca de arquivos falhou: ${error}`);
+            if (!cancellable.is_cancelled())
+                console.debug(`Sheliak: busca de arquivos falhou: ${error}`);
+        }).finally(() => {
+            if (this._searchCancellable === cancellable)
+                this._searchCancellable = null;
         });
     }
 
@@ -814,7 +833,8 @@ class SearchIndicator {
         return this._fileConnection;
     }
 
-    private async _searchFiles(query: string): Promise<SearchItem[]> {
+    private async _searchFiles(query: string,
+        cancellable: Gio.Cancellable): Promise<SearchItem[]> {
         const connection = this._getFileConnection();
         if (!connection)
             return [];
@@ -832,15 +852,15 @@ class SearchIndicator {
             } ORDER BY DESC(nfo:fileLastModified(?file)) LIMIT ${FILE_SEARCH_LIMIT}
         `;
 
-        const cursor = await connection.query_async(sparql, null);
+        const cursor = await connection.query_async(sparql, cancellable);
         const results: SearchItem[] = [];
         try {
-            while (await cursor.next_async(null)) {
+            while (await cursor.next_async(cancellable)) {
                 const url = cursor.get_string(0)[0];
                 const name = cursor.get_string(1)[0];
                 results.push({
                     name,
-                    icon: this._fileIcon(url),
+                    icon: await this._fileIcon(url, cancellable),
                     keywords: name.toLowerCase(),
                     activate: () => openUri(url),
                 });
@@ -851,13 +871,15 @@ class SearchIndicator {
         return results;
     }
 
-    private _fileIcon(url: string): Gio.Icon | string {
+    private async _fileIcon(url: string,
+        cancellable: Gio.Cancellable): Promise<Gio.Icon | string> {
         // nie:mimeType não é preenchido de forma confiável pelo Tracker
         // (fica null tanto para pastas quanto para vários arquivos comuns);
         // consultar o próprio GIO dá o ícone correto, igual ao Nautilus.
         try {
-            const info = Gio.File.new_for_uri(url).query_info(
-                'standard::icon', Gio.FileQueryInfoFlags.NONE, null);
+            const info = await Gio.File.new_for_uri(url).query_info_async(
+                'standard::icon', Gio.FileQueryInfoFlags.NONE,
+                GLib.PRIORITY_DEFAULT, cancellable);
             return info.get_icon() ?? 'text-x-generic-symbolic';
         } catch {
             return 'text-x-generic-symbolic';
