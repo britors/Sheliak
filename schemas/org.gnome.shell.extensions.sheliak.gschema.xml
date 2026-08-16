@@ -21,6 +21,7 @@
     <key name="panel-margin" type="u"><default>8</default><summary>Gap between the floating top panel and the screen edges, in pixels</summary></key>
     <key name="show-clock" type="b"><default>true</default><summary>Show the clock in the top panel</summary></key>
     <key name="show-panel-indicators" type="b"><default>true</default><summary>Show native GNOME indicators on the right side of the top panel</summary></key>
+    <key name="hide-main-right-menu" type="b"><default>true</default><summary>Hide the native GNOME quick settings menu on the right side of the top panel</summary></key>
     <key name="show-applications-menu" type="b"><default>true</default><summary>Show the applications menu in the top panel</summary></key>
     <key name="show-places-menu" type="b"><default>true</default><summary>Show the places menu in the top panel</summary></key>
     <key name="show-network-menu" type="b"><default>true</default><summary>Show network status, Wi-Fi controls, and settings in the top panel</summary></key>
@@ -28,7 +29,7 @@
     <key name="show-system-about" type="b"><default>true</default><summary>Show the About item immediately before power actions in the system menu</summary></key>
     <key name="show-search-menu" type="b"><default>true</default><summary>Show the search menu in the top panel</summary></key>
     <key name="hide-workspace-button" type="b"><default>true</default><summary>Hide the workspace button in the top panel</summary></key>
-    <key name="panel-menu-position" type="s"><default>'left'</default><summary>Top panel box for the Applications, Places, Network, System, and Search menus: left, center, or right</summary></key>
+    <key name="panel-menu-position" type="s"><default>'left'</default><summary>Top panel box for the Applications, Places, Network, and System menus: left, center, or right</summary></key>
     <key name="show-application-icons" type="b"><default>true</default><summary>Show application icons in the applications menu</summary></key>
     <key name="sort-applications-menu" type="b"><default>true</default><summary>Sort application categories and entries alphabetically</summary></key>
     <key name="open-application-submenus-sideways" type="b"><default>false</default><summary>Open application category submenus sideways</summary></key>

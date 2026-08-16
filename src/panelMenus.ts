@@ -4,6 +4,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Tracker from 'gi://Tracker';
+import * as ByteArray from 'resource:///org/gnome/gjs/modules/esm/byteArray.js';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -22,6 +23,27 @@ const FILE_SEARCH_LIMIT = 5;
 const NETWORK_MANAGER_SERVICE = 'org.freedesktop.NetworkManager';
 const NETWORK_MANAGER_PATH = '/org/freedesktop/NetworkManager';
 const NETWORK_MANAGER_INTERFACE = 'org.freedesktop.NetworkManager';
+const NETWORK_DEVICE_INTERFACE = 'org.freedesktop.NetworkManager.Device';
+const NETWORK_WIRELESS_INTERFACE = 'org.freedesktop.NetworkManager.Device.Wireless';
+const NETWORK_ACCESS_POINT_INTERFACE = 'org.freedesktop.NetworkManager.AccessPoint';
+const NETWORK_SETTINGS_PATH = '/org/freedesktop/NetworkManager/Settings';
+const NETWORK_SETTINGS_INTERFACE = 'org.freedesktop.NetworkManager.Settings';
+const NETWORK_CONNECTION_INTERFACE = 'org.freedesktop.NetworkManager.Settings.Connection';
+const NETWORK_ACTIVE_CONNECTION_INTERFACE = 'org.freedesktop.NetworkManager.Connection.Active';
+
+type WirelessNetwork = {
+    ssid: string;
+    strength: number;
+    accessPoint: string;
+    device: string;
+    active: boolean;
+};
+
+type VpnConnection = {
+    name: string;
+    connection: string;
+    activeConnection: string | null;
+};
 
 type ApplicationInfo = {
     get_id: () => string | null;
@@ -584,6 +606,25 @@ class SystemIndicator {
         });
         menu.addMenuItem(settingsItem);
 
+        const systemTools: Array<[string, string, () => void]> = [
+            [_('Audio'), 'audio-volume-high-symbolic',
+                () => this._openControlCenter('sound', _('Could not open audio settings'))],
+            [_('Bluetooth'), 'bluetooth-active-symbolic',
+                () => this._openControlCenter('bluetooth',
+                    _('Could not open Bluetooth settings'))],
+            [_('Energy'), 'battery-good-symbolic',
+                () => this._openControlCenter('power', _('Could not open energy settings'))],
+            [_('Screenshot'), 'camera-photo-symbolic', () => this._openScreenshot()],
+        ];
+        for (const [label, icon, activate] of systemTools) {
+            const item = new PopupMenu.PopupImageMenuItem(label, icon);
+            item.connect('activate', () => {
+                menu.close();
+                activate();
+            });
+            menu.addMenuItem(item);
+        }
+
         if (this._settings.get_boolean('show-system-about')) {
             const aboutItem = new PopupMenu.PopupImageMenuItem(_('About'), 'help-about-symbolic');
             aboutItem.connect('activate', () => {
@@ -629,6 +670,24 @@ class SystemIndicator {
         }
     }
 
+    private _openControlCenter(panel: string, errorMessage: string): void {
+        try {
+            Gio.Subprocess.new(['gnome-control-center', panel], Gio.SubprocessFlags.NONE);
+        } catch (error) {
+            console.error(`Sheliak: falha ao abrir o painel ${panel}: ${error}`);
+            Main.notifyError(errorMessage, String(error));
+        }
+    }
+
+    private _openScreenshot(): void {
+        try {
+            Main.screenshotUI.open();
+        } catch (error) {
+            console.error(`Sheliak: falha ao abrir a captura de tela: ${error}`);
+            Main.notifyError(_('Could not open the screenshot tool'), String(error));
+        }
+    }
+
     private _openSystemAbout(): void {
         try {
             Gio.Subprocess.new(['gnome-control-center', 'system'], Gio.SubprocessFlags.NONE);
@@ -646,7 +705,10 @@ class NetworkIndicator {
     private _cancellable = new Gio.Cancellable();
     private _networkingItem: PopupMenu.PopupSwitchMenuItem;
     private _wirelessItem: PopupMenu.PopupSwitchMenuItem;
+    private _wifiMenu: PopupMenu.PopupSubMenuMenuItem;
+    private _vpnMenu: PopupMenu.PopupSubMenuMenuItem;
     private _syncing = false;
+    private _refreshGeneration = 0;
 
     constructor() {
         this.button = new PanelMenu.Button(0.5, _('Network'));
@@ -670,6 +732,32 @@ class NetworkIndicator {
                 void this._setWirelessEnabled(enabled);
         });
         menu.addMenuItem(this._wirelessItem);
+
+        this._wifiMenu = new PopupMenu.PopupSubMenuMenuItem(_('Wi-Fi'), true);
+        const wifiMenuWithIcon = this._wifiMenu as PopupMenu.PopupSubMenuMenuItem &
+            {icon?: St.Icon};
+        if (wifiMenuWithIcon.icon)
+            wifiMenuWithIcon.icon.icon_name = 'network-wireless-signal-excellent-symbolic';
+        this._wifiMenu.setSensitive(false);
+        this._wifiMenu.menu.connect('open-state-changed', (_submenu, open: boolean) => {
+            if (open)
+                void this._refreshWifiNetworks(true);
+            return undefined;
+        });
+        menu.addMenuItem(this._wifiMenu);
+
+        this._vpnMenu = new PopupMenu.PopupSubMenuMenuItem(_('VPN'), true);
+        const vpnMenuWithIcon = this._vpnMenu as PopupMenu.PopupSubMenuMenuItem &
+            {icon?: St.Icon};
+        if (vpnMenuWithIcon.icon)
+            vpnMenuWithIcon.icon.icon_name = 'network-vpn-symbolic';
+        this._vpnMenu.setSensitive(false);
+        this._vpnMenu.menu.connect('open-state-changed', (_submenu, open: boolean) => {
+            if (open)
+                void this._refreshVpnConnections();
+            return undefined;
+        });
+        menu.addMenuItem(this._vpnMenu);
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         const settingsItem = new PopupMenu.PopupImageMenuItem(
@@ -704,6 +792,7 @@ class NetworkIndicator {
     }
 
     destroy(): void {
+        this._refreshGeneration++;
         this._cancellable.cancel();
         if (this._proxy && this._proxySignalId)
             this._proxy.disconnect(this._proxySignalId);
@@ -727,7 +816,14 @@ class NetworkIndicator {
         this._networkingItem.setSensitive(true);
         this._wirelessItem.setToggleState(wirelessEnabled);
         this._wirelessItem.setSensitive(networkingEnabled && wirelessAvailable);
+        this._wifiMenu.setSensitive(networkingEnabled && wirelessEnabled && wirelessAvailable);
+        this._vpnMenu.setSensitive(networkingEnabled);
         this._syncing = false;
+
+        if (this._wifiMenu.menu.isOpen)
+            void this._refreshWifiNetworks(false);
+        if (this._vpnMenu.menu.isOpen)
+            void this._refreshVpnConnections();
 
         const connected = state >= 50 && state <= 70;
         const oldLabel = this.button.get_first_child();
@@ -763,6 +859,262 @@ class NetworkIndicator {
                 Main.notifyError(_('Could not change Wi-Fi'), String(error));
                 this._sync();
             }
+        }
+    }
+
+    private _newProxy(path: string, interfaceName: string): Promise<Gio.DBusProxy> {
+        return new Promise((resolve, reject) => Gio.DBusProxy.new_for_bus(
+            Gio.BusType.SYSTEM, Gio.DBusProxyFlags.GET_INVALIDATED_PROPERTIES, null,
+            NETWORK_MANAGER_SERVICE, path, interfaceName, this._cancellable,
+            (_source, result) => {
+                try {
+                    resolve(Gio.DBusProxy.new_for_bus_finish(result));
+                } catch (error) {
+                    reject(error);
+                }
+            }));
+    }
+
+    private async _refreshWifiNetworks(requestScan: boolean): Promise<void> {
+        const generation = ++this._refreshGeneration;
+        this._wifiMenu.menu.removeAll();
+        const loading = new PopupMenu.PopupMenuItem(_('Searching for Wi-Fi networks…'));
+        loading.setSensitive(false);
+        this._wifiMenu.menu.addMenuItem(loading);
+        try {
+            const networks = await this._discoverWifiNetworks(requestScan);
+            if (generation !== this._refreshGeneration || this._cancellable.is_cancelled())
+                return;
+            this._wifiMenu.menu.removeAll();
+            if (networks.length === 0) {
+                const empty = new PopupMenu.PopupMenuItem(_('No Wi-Fi networks found'));
+                empty.setSensitive(false);
+                this._wifiMenu.menu.addMenuItem(empty);
+                return;
+            }
+            for (const network of networks) {
+                const action = network.active ? _('Disconnect') : _('Connect');
+                const item = new PopupMenu.PopupImageMenuItem(
+                    `${network.ssid} — ${action}`, this._signalIcon(network.strength));
+                item.connect('activate', () => void this._toggleWifiNetwork(network));
+                this._wifiMenu.menu.addMenuItem(item);
+            }
+        } catch (error) {
+            if (generation !== this._refreshGeneration || this._cancellable.is_cancelled())
+                return;
+            console.error(`Sheliak: falha ao buscar redes Wi-Fi: ${error}`);
+            this._wifiMenu.menu.removeAll();
+            const failed = new PopupMenu.PopupMenuItem(_('Could not find Wi-Fi networks'));
+            failed.setSensitive(false);
+            this._wifiMenu.menu.addMenuItem(failed);
+        }
+    }
+
+    private async _discoverWifiNetworks(requestScan: boolean): Promise<WirelessNetwork[]> {
+        const result = await this._proxy?.call('GetDevices', null,
+            Gio.DBusCallFlags.NONE, -1, this._cancellable);
+        const [devicePaths] = result?.deepUnpack() as [string[]] ?? [[]];
+        const networks = new Map<string, WirelessNetwork>();
+        for (const devicePath of devicePaths) {
+            const device = await this._newProxy(devicePath, NETWORK_DEVICE_INTERFACE);
+            if ((device.get_cached_property('DeviceType')?.deepUnpack() as number) !== 2)
+                continue;
+            const wireless = await this._newProxy(devicePath, NETWORK_WIRELESS_INTERFACE);
+            if (requestScan) {
+                try {
+                    await wireless.call('RequestScan', new GLib.Variant('(a{sv})', [{}]),
+                        Gio.DBusCallFlags.NONE, -1, this._cancellable);
+                } catch (error) {
+                    console.debug(`Sheliak: varredura Wi-Fi não iniciada: ${error}`);
+                }
+            }
+            const activePath = wireless.get_cached_property('ActiveAccessPoint')
+                ?.deepUnpack() as string | undefined;
+            const accessPointsResult = await wireless.call('GetAllAccessPoints', null,
+                Gio.DBusCallFlags.NONE, -1, this._cancellable);
+            const [accessPointPaths] = accessPointsResult.deepUnpack() as [string[]];
+            for (const accessPointPath of accessPointPaths) {
+                const accessPoint = await this._newProxy(
+                    accessPointPath, NETWORK_ACCESS_POINT_INTERFACE);
+                const bytes = accessPoint.get_cached_property('Ssid')
+                    ?.deepUnpack() as number[] | undefined;
+                const ssid = bytes?.length ? ByteArray.toString(Uint8Array.from(bytes)) : '';
+                if (!ssid)
+                    continue;
+                const candidate: WirelessNetwork = {
+                    ssid,
+                    strength: accessPoint.get_cached_property('Strength')?.deepUnpack() as number ?? 0,
+                    accessPoint: accessPointPath,
+                    device: devicePath,
+                    active: accessPointPath === activePath,
+                };
+                const previous = networks.get(ssid);
+                if (!previous || candidate.active || candidate.strength > previous.strength)
+                    networks.set(ssid, candidate);
+            }
+        }
+        return [...networks.values()].sort((a, b) =>
+            Number(b.active) - Number(a.active) || b.strength - a.strength ||
+            alphabeticalCompare(a.ssid, b.ssid));
+    }
+
+    private _signalIcon(strength: number): string {
+        if (strength > 75)
+            return 'network-wireless-signal-excellent-symbolic';
+        if (strength > 50)
+            return 'network-wireless-signal-good-symbolic';
+        if (strength > 25)
+            return 'network-wireless-signal-ok-symbolic';
+        return 'network-wireless-signal-weak-symbolic';
+    }
+
+    private async _toggleWifiNetwork(network: WirelessNetwork): Promise<void> {
+        try {
+            if (network.active) {
+                const device = await this._newProxy(network.device, NETWORK_DEVICE_INTERFACE);
+                await device.call('Disconnect', null, Gio.DBusCallFlags.NONE, -1,
+                    this._cancellable);
+            } else {
+                const connection = await this._findSavedWifiConnection(network.ssid);
+                if (connection) {
+                    await this._proxy?.call('ActivateConnection',
+                        new GLib.Variant('(ooo)', [connection, network.device,
+                            network.accessPoint]), Gio.DBusCallFlags.NONE, -1,
+                        this._cancellable);
+                } else {
+                    await this._proxy?.call('AddAndActivateConnection',
+                        new GLib.Variant('(a{sa{sv}}oo)' as never,
+                            [{}, network.device, network.accessPoint] as never) as
+                            unknown as GLib.Variant<any>,
+                        Gio.DBusCallFlags.NONE, -1,
+                        this._cancellable);
+                }
+            }
+        } catch (error) {
+            if (!this._cancellable.is_cancelled()) {
+                console.error(`Sheliak: falha ao alterar a conexão Wi-Fi: ${error}`);
+                Main.notifyError(_('Could not change the Wi-Fi connection'), String(error));
+            }
+        } finally {
+            if (!this._cancellable.is_cancelled())
+                void this._refreshWifiNetworks(false);
+        }
+    }
+
+    private async _findSavedWifiConnection(ssid: string): Promise<string | null> {
+        const settings = await this._newProxy(NETWORK_SETTINGS_PATH, NETWORK_SETTINGS_INTERFACE);
+        const result = await settings.call('ListConnections', null,
+            Gio.DBusCallFlags.NONE, -1, this._cancellable);
+        const [paths] = result.deepUnpack() as [string[]];
+        for (const path of paths) {
+            const connection = await this._newProxy(path, NETWORK_CONNECTION_INTERFACE);
+            const settingsResult = await connection.call('GetSettings', null,
+                Gio.DBusCallFlags.NONE, -1, this._cancellable);
+            const [values] = settingsResult.deepUnpack() as [Record<string,
+                Record<string, unknown>>];
+            const unpack = (value: unknown): unknown => value instanceof GLib.Variant
+                ? value.deepUnpack() : value;
+            const type = unpack(values.connection?.type) as string | undefined;
+            const bytes = unpack(values['802-11-wireless']?.ssid) as number[] | undefined;
+            const savedSsid = bytes?.length ? ByteArray.toString(Uint8Array.from(bytes)) : '';
+            if (type === '802-11-wireless' && savedSsid === ssid)
+                return path;
+        }
+        return null;
+    }
+
+    private async _refreshVpnConnections(): Promise<void> {
+        const generation = ++this._refreshGeneration;
+        this._vpnMenu.menu.removeAll();
+        const loading = new PopupMenu.PopupMenuItem(_('Loading VPN connections…'));
+        loading.setSensitive(false);
+        this._vpnMenu.menu.addMenuItem(loading);
+        try {
+            const connections = await this._discoverVpnConnections();
+            if (generation !== this._refreshGeneration || this._cancellable.is_cancelled())
+                return;
+            this._vpnMenu.menu.removeAll();
+            if (connections.length === 0) {
+                const empty = new PopupMenu.PopupMenuItem(_('No VPN connections configured'));
+                empty.setSensitive(false);
+                this._vpnMenu.menu.addMenuItem(empty);
+                return;
+            }
+            for (const connection of connections) {
+                const action = connection.activeConnection ? _('Disconnect') : _('Connect');
+                const item = new PopupMenu.PopupImageMenuItem(
+                    `${connection.name} — ${action}`, 'network-vpn-symbolic');
+                item.connect('activate', () => void this._toggleVpnConnection(connection));
+                this._vpnMenu.menu.addMenuItem(item);
+            }
+        } catch (error) {
+            if (generation !== this._refreshGeneration || this._cancellable.is_cancelled())
+                return;
+            console.error(`Sheliak: falha ao buscar conexões VPN: ${error}`);
+            this._vpnMenu.menu.removeAll();
+            const failed = new PopupMenu.PopupMenuItem(_('Could not load VPN connections'));
+            failed.setSensitive(false);
+            this._vpnMenu.menu.addMenuItem(failed);
+        }
+    }
+
+    private async _discoverVpnConnections(): Promise<VpnConnection[]> {
+        const activePaths = this._property<string[]>('ActiveConnections', []);
+        const activeByProfile = new Map<string, string>();
+        for (const activePath of activePaths) {
+            const active = await this._newProxy(
+                activePath, NETWORK_ACTIVE_CONNECTION_INTERFACE);
+            const profile = active.get_cached_property('Connection')?.deepUnpack() as
+                string | undefined;
+            if (profile)
+                activeByProfile.set(profile, activePath);
+        }
+
+        const settings = await this._newProxy(NETWORK_SETTINGS_PATH, NETWORK_SETTINGS_INTERFACE);
+        const result = await settings.call('ListConnections', null,
+            Gio.DBusCallFlags.NONE, -1, this._cancellable);
+        const [paths] = result.deepUnpack() as [string[]];
+        const connections: VpnConnection[] = [];
+        for (const path of paths) {
+            const proxy = await this._newProxy(path, NETWORK_CONNECTION_INTERFACE);
+            const settingsResult = await proxy.call('GetSettings', null,
+                Gio.DBusCallFlags.NONE, -1, this._cancellable);
+            const [values] = settingsResult.deepUnpack() as [Record<string,
+                Record<string, unknown>>];
+            const unpack = (value: unknown): unknown => value instanceof GLib.Variant
+                ? value.deepUnpack() : value;
+            if (unpack(values.connection?.type) !== 'vpn')
+                continue;
+            connections.push({
+                name: unpack(values.connection?.id) as string || _('VPN'),
+                connection: path,
+                activeConnection: activeByProfile.get(path) ?? null,
+            });
+        }
+        return connections.sort((a, b) =>
+            Number(Boolean(b.activeConnection)) - Number(Boolean(a.activeConnection)) ||
+            alphabeticalCompare(a.name, b.name));
+    }
+
+    private async _toggleVpnConnection(connection: VpnConnection): Promise<void> {
+        try {
+            if (connection.activeConnection) {
+                await this._proxy?.call('DeactivateConnection',
+                    new GLib.Variant('(o)', [connection.activeConnection]),
+                    Gio.DBusCallFlags.NONE, -1, this._cancellable);
+            } else {
+                await this._proxy?.call('ActivateConnection',
+                    new GLib.Variant('(ooo)', [connection.connection, '/', '/']),
+                    Gio.DBusCallFlags.NONE, -1, this._cancellable);
+            }
+        } catch (error) {
+            if (!this._cancellable.is_cancelled()) {
+                console.error(`Sheliak: falha ao alterar a conexão VPN: ${error}`);
+                Main.notifyError(_('Could not change the VPN connection'), String(error));
+            }
+        } finally {
+            if (!this._cancellable.is_cancelled())
+                void this._refreshVpnConnections();
         }
     }
 
@@ -1150,7 +1502,7 @@ export class PanelMenus {
         if (this._settings.get_boolean('show-search-menu')) {
             this._search = new SearchIndicator();
             Main.panel.addToStatusArea(
-                'sheliak-search', this._search.button, position, box);
+                'sheliak-search', this._search.button, 0, 'right');
         }
     }
 

@@ -42,6 +42,7 @@ export class TopBarManager {
     private _dateMenu: VisibleActor | null;
     private _dateMenuWasVisible: boolean;
     private _rightBox: Clutter.Actor;
+    private _mainRightMenu: VisibleActor | null;
     private _nativeIndicators = new Map<VisibleActor, boolean>();
     private _panelMenuActors = new Set<St.Widget>();
     private _trackedWindows = new Set<Meta.Window>();
@@ -64,6 +65,7 @@ export class TopBarManager {
         const statusArea = Main.panel.statusArea as unknown as Record<string, VisibleActor>;
         this._dateMenu = statusArea.dateMenu ?? null;
         this._dateMenuWasVisible = this._dateMenu?.visible ?? false;
+        this._mainRightMenu = statusArea.quickSettings ?? null;
         this._rightBox = panelRightBox();
         const panel = Main.panel;
         this._panelState = {
@@ -89,6 +91,8 @@ export class TopBarManager {
         this._signals.connect(this._settings, 'changed::show-clock',
             () => this._syncClock());
         this._signals.connect(this._settings, 'changed::show-panel-indicators',
+            () => this._syncIndicators());
+        this._signals.connect(this._settings, 'changed::hide-main-right-menu',
             () => this._syncIndicators());
         this._signals.connect(this._settings, 'changed::floating-panel',
             () => this._syncFloating());
@@ -149,6 +153,7 @@ export class TopBarManager {
         this._trackedWindows.clear();
         this._windowSignals.clear();
         this._dateMenu = null;
+        this._mainRightMenu = null;
     }
 
     private _trackNativeIndicator(actor: Clutter.Actor): void {
@@ -163,7 +168,7 @@ export class TopBarManager {
         // estiver desligada, interceptamos essa exibição e lembramos que o
         // Shell queria mostrar o ator para restaurá-lo mais tarde.
         this._signals.connect(indicator, 'notify::visible', () => {
-            if (this._settings.get_boolean('show-panel-indicators')) {
+            if (this._shouldShowNativeIndicator(indicator)) {
                 this._nativeIndicators.set(indicator, indicator.visible);
             } else if (indicator.visible) {
                 this._nativeIndicators.set(indicator, true);
@@ -314,11 +319,18 @@ export class TopBarManager {
     }
 
     private _syncIndicator(actor: VisibleActor): void {
-        if (this._settings.get_boolean('show-panel-indicators')) {
+        if (this._shouldShowNativeIndicator(actor)) {
             if (this._nativeIndicators.get(actor) && actor.get_parent())
                 actor.show();
         } else {
             actor.hide();
         }
+    }
+
+    private _shouldShowNativeIndicator(actor: VisibleActor): boolean {
+        if (!this._settings.get_boolean('show-panel-indicators'))
+            return false;
+        return actor !== this._mainRightMenu ||
+            !this._settings.get_boolean('hide-main-right-menu');
     }
 }

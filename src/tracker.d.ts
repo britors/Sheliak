@@ -25,3 +25,7 @@ declare module 'gi://Tracker' {
 
     export default Tracker;
 }
+
+declare module 'resource:///org/gnome/gjs/modules/esm/byteArray.js' {
+    export function toString(array: Uint8Array): string;
+}
