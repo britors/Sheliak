@@ -19,6 +19,9 @@ Gio._promisify(Gio.File.prototype, 'query_info_async', 'query_info_finish');
 
 const FILE_SEARCH_SERVICE = 'org.freedesktop.Tracker3.Miner.Files';
 const FILE_SEARCH_LIMIT = 5;
+const NETWORK_MANAGER_SERVICE = 'org.freedesktop.NetworkManager';
+const NETWORK_MANAGER_PATH = '/org/freedesktop/NetworkManager';
+const NETWORK_MANAGER_INTERFACE = 'org.freedesktop.NetworkManager';
 
 type ApplicationInfo = {
     get_id: () => string | null;
@@ -636,6 +639,143 @@ class SystemIndicator {
     }
 }
 
+class NetworkIndicator {
+    readonly button: PanelMenu.Button;
+    private _proxy: Gio.DBusProxy | null = null;
+    private _proxySignalId = 0;
+    private _cancellable = new Gio.Cancellable();
+    private _networkingItem: PopupMenu.PopupSwitchMenuItem;
+    private _wirelessItem: PopupMenu.PopupSwitchMenuItem;
+    private _syncing = false;
+
+    constructor() {
+        this.button = new PanelMenu.Button(0.5, _('Network'));
+        this.button.add_style_class_name('sheliak-panel-indicator');
+        this.button.add_child(panelLabel(_('Network'), 'network-offline-symbolic'));
+        const menu = this.button.menu as PopupMenu.PopupMenu;
+        menu.actor.add_style_class_name('sheliak-panel-menu');
+
+        this._networkingItem = new PopupMenu.PopupSwitchMenuItem(_('Networking'), false);
+        this._networkingItem.setSensitive(false);
+        this._networkingItem.connect('toggled', (_item, enabled) => {
+            if (!this._syncing)
+                void this._setNetworkingEnabled(enabled);
+        });
+        menu.addMenuItem(this._networkingItem);
+
+        this._wirelessItem = new PopupMenu.PopupSwitchMenuItem(_('Wi-Fi'), false);
+        this._wirelessItem.setSensitive(false);
+        this._wirelessItem.connect('toggled', (_item, enabled) => {
+            if (!this._syncing)
+                void this._setWirelessEnabled(enabled);
+        });
+        menu.addMenuItem(this._wirelessItem);
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        const settingsItem = new PopupMenu.PopupImageMenuItem(
+            _('Network Settings'), 'preferences-system-network-symbolic');
+        settingsItem.connect('activate', () => {
+            menu.close();
+            this._openSettings();
+        });
+        menu.addMenuItem(settingsItem);
+
+        Gio.DBusProxy.new_for_bus(
+            Gio.BusType.SYSTEM,
+            Gio.DBusProxyFlags.GET_INVALIDATED_PROPERTIES,
+            null,
+            NETWORK_MANAGER_SERVICE,
+            NETWORK_MANAGER_PATH,
+            NETWORK_MANAGER_INTERFACE,
+            this._cancellable,
+            (_source, result) => {
+                if (this._cancellable.is_cancelled())
+                    return;
+                try {
+                    this._proxy = Gio.DBusProxy.new_for_bus_finish(result);
+                    this._proxySignalId = this._proxy.connect(
+                        'g-properties-changed', () => this._sync());
+                    this._sync();
+                } catch (error) {
+                    if (!this._cancellable.is_cancelled())
+                        console.error(`Sheliak: falha ao acessar o NetworkManager: ${error}`);
+                }
+            });
+    }
+
+    destroy(): void {
+        this._cancellable.cancel();
+        if (this._proxy && this._proxySignalId)
+            this._proxy.disconnect(this._proxySignalId);
+        this._proxySignalId = 0;
+        this._proxy = null;
+        this.button.destroy();
+    }
+
+    private _property<T>(name: string, fallback: T): T {
+        return (this._proxy?.get_cached_property(name)?.deepUnpack() as T | undefined) ?? fallback;
+    }
+
+    private _sync(): void {
+        const networkingEnabled = this._property('NetworkingEnabled', false);
+        const wirelessEnabled = this._property('WirelessEnabled', false);
+        const wirelessAvailable = this._property('WirelessHardwareEnabled', false);
+        const state = this._property('State', 20);
+
+        this._syncing = true;
+        this._networkingItem.setToggleState(networkingEnabled);
+        this._networkingItem.setSensitive(true);
+        this._wirelessItem.setToggleState(wirelessEnabled);
+        this._wirelessItem.setSensitive(networkingEnabled && wirelessAvailable);
+        this._syncing = false;
+
+        const connected = state >= 50 && state <= 70;
+        const oldLabel = this.button.get_first_child();
+        if (oldLabel)
+            oldLabel.destroy();
+        this.button.add_child(panelLabel(
+            connected ? _('Network') : _('Offline'),
+            connected ? 'network-transmit-receive-symbolic' : 'network-offline-symbolic'));
+    }
+
+    private async _setNetworkingEnabled(enabled: boolean): Promise<void> {
+        try {
+            await this._proxy?.call('Enable', new GLib.Variant('(b)', [enabled]),
+                Gio.DBusCallFlags.NONE, -1, this._cancellable);
+        } catch (error) {
+            if (!this._cancellable.is_cancelled()) {
+                console.error(`Sheliak: falha ao alterar o estado da rede: ${error}`);
+                Main.notifyError(_('Could not change the network state'), String(error));
+                this._sync();
+            }
+        }
+    }
+
+    private async _setWirelessEnabled(enabled: boolean): Promise<void> {
+        try {
+            await this._proxy?.call('org.freedesktop.DBus.Properties.Set',
+                new GLib.Variant('(ssv)', [NETWORK_MANAGER_INTERFACE, 'WirelessEnabled',
+                    new GLib.Variant('b', enabled)]),
+                Gio.DBusCallFlags.NONE, -1, this._cancellable);
+        } catch (error) {
+            if (!this._cancellable.is_cancelled()) {
+                console.error(`Sheliak: falha ao alterar o Wi-Fi: ${error}`);
+                Main.notifyError(_('Could not change Wi-Fi'), String(error));
+                this._sync();
+            }
+        }
+    }
+
+    private _openSettings(): void {
+        try {
+            Gio.Subprocess.new(['gnome-control-center', 'network'], Gio.SubprocessFlags.NONE);
+        } catch (error) {
+            console.error(`Sheliak: falha ao abrir as configurações de rede: ${error}`);
+            Main.notifyError(_('Could not open network settings'), String(error));
+        }
+    }
+}
+
 class SearchIndicator {
     readonly button: PanelMenu.Button;
     private _appSystem = Shell.AppSystem.get_default();
@@ -956,6 +1096,7 @@ export class PanelMenus {
     private _signals = new SignalTracker();
     private _applications: ApplicationsIndicator | null = null;
     private _places: PlacesIndicator | null = null;
+    private _network: NetworkIndicator | null = null;
     private _system: SystemIndicator | null = null;
     private _search: SearchIndicator | null = null;
     private _extensionPath?: string;
@@ -964,7 +1105,8 @@ export class PanelMenus {
         this._settings = settings;
         this._extensionPath = extensionPath;
         for (const key of ['show-applications-menu', 'show-places-menu',
-            'show-system-menu', 'show-system-about', 'show-search-menu', 'panel-menu-position']) {
+            'show-network-menu', 'show-system-menu', 'show-system-about',
+            'show-search-menu', 'panel-menu-position']) {
             this._signals.connect(this._settings, `changed::${key}`,
                 () => this._recreate());
         }
@@ -995,6 +1137,11 @@ export class PanelMenus {
             Main.panel.addToStatusArea(
                 'sheliak-places', this._places.button, position++, box);
         }
+        if (this._settings.get_boolean('show-network-menu')) {
+            this._network = new NetworkIndicator();
+            Main.panel.addToStatusArea(
+                'sheliak-network', this._network.button, position++, box);
+        }
         if (this._settings.get_boolean('show-system-menu')) {
             this._system = new SystemIndicator(this._settings);
             Main.panel.addToStatusArea(
@@ -1012,6 +1159,8 @@ export class PanelMenus {
         this._search = null;
         this._system?.destroy();
         this._system = null;
+        this._network?.destroy();
+        this._network = null;
         this._places?.destroy();
         this._places = null;
         this._applications?.destroy();

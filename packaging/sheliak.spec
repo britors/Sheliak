@@ -1,5 +1,5 @@
 Name:           sheliak
-Version:        1.10.0
+Version:        1.11.0
 Release:        0
 Summary:        Native Lyra OS dock for GNOME Shell
 License:        GPL-3.0-or-later
@@ -14,9 +14,9 @@ Requires:       gnome-shell < 49
 Sheliak is the Lyra OS dock for GNOME Shell. It displays favorite and running
 applications, a dynamic Trash icon, application menus, and the native
 applications grid button. It also configures the top panel size and visibility
-of the clock and native indicators, and provides Applications, Places, System,
-and Search menus. In the System menu, About is followed by the power-actions
-submenu.
+of the clock and native indicators, and provides Applications, Places, Network,
+System, and Search menus. The Network menu controls networking and Wi-Fi through
+NetworkManager. In the System menu, About is followed by the power-actions submenu.
 
 %prep
 %autosetup

@@ -8,7 +8,10 @@ const sources = sourceFiles.map(file => readFileSync(`src/${file}`, 'utf8')).joi
 const sourceKeys = new Set([...sources.matchAll(/_\('([^']+)'\)/g)].map(match => match[1]));
 sourceKeys.add('Native Lyra ecosystem dock for GNOME Shell');
 
-for (const locale of ['pt-BR', 'es-ES', 'zh-CN']) {
+assert.deepEqual(readdirSync('po').filter(file => file.endsWith('.json')).sort(),
+    ['en-US.json', 'es-ES.json', 'pt-BR.json']);
+
+for (const locale of ['pt-BR', 'es-ES']) {
     const catalog = JSON.parse(readFileSync(`po/${locale}.json`, 'utf8'));
     assert.deepEqual(new Set(Object.keys(catalog)), sourceKeys, `${locale} key parity`);
 }
@@ -18,7 +21,6 @@ const cases = [
     ['en_US.UTF-8', 'Applications'],
     ['pt_BR.UTF-8', 'Aplicativos'],
     ['es_ES.UTF-8', 'Aplicaciones'],
-    ['zh_CN.UTF-8', '应用程序'],
     ['fr_FR.UTF-8', 'Applications'],
 ];
 for (const [lang, expected] of cases) {
@@ -32,7 +34,7 @@ for (const [lang, expected] of cases) {
 
 const precedenceCases = [
     [{LANG: 'es_ES.UTF-8', LC_MESSAGES: 'pt_BR.UTF-8'}, 'Aplicativos'],
-    [{LANG: 'es_ES.UTF-8', LC_MESSAGES: 'pt_BR.UTF-8', LC_ALL: 'zh_CN.UTF-8'}, '应用程序'],
+    [{LANG: 'es_ES.UTF-8', LC_MESSAGES: 'pt_BR.UTF-8', LC_ALL: 'en_US.UTF-8'}, 'Applications'],
     [{LANG: 'en_US.UTF-8', LC_MESSAGES: 'pt_BR.UTF-8@custom'}, 'Aplicativos'],
 ];
 for (const [localeEnv, expected] of precedenceCases) {
@@ -48,7 +50,7 @@ for (const [localeEnv, expected] of precedenceCases) {
     assert.equal(actual, expected, JSON.stringify(localeEnv));
 }
 
-for (const locale of ['en_US', 'pt_BR', 'es_ES', 'zh_CN']) {
+for (const locale of ['en_US', 'pt_BR', 'es_ES']) {
     const mo = `dist/locale/${locale}/LC_MESSAGES/sheliak.mo`;
     assert.doesNotThrow(() => execFileSync('msgunfmt', [mo]));
 }
@@ -59,6 +61,8 @@ assert.match(readFileSync('src/showAppsButton.ts', 'utf8'), /accessible_name: _\
 assert.match(readFileSync('src/trashIcon.ts', 'utf8'), /accessible_name: _\('Trash'\)/);
 assert.match(sources, /_\('Source Code'\), 'applications-engineering-symbolic'/);
 assert.match(sources, /_\('Report an Issue'\), 'dialog-warning-symbolic'/);
+assert.match(sources, /class NetworkIndicator/);
+assert.match(sources, /NETWORK_MANAGER_INTERFACE/);
 assert.doesNotMatch(sources, /(?:title|subtitle|label|text|accessible_name|hint_text):\s*['"][^'"]*[À-ÿ]/);
 
 const spec = readFileSync('packaging/sheliak.spec', 'utf8');
@@ -73,4 +77,4 @@ for (const css of ['stylesheet.css', 'prefs.css']) {
     assert.match(contents, /Noto Sans CJK SC/);
 }
 
-console.log(`i18n: ${sourceKeys.size} keys, 8 locale/fallback cases, packaging and accessibility OK`);
+console.log(`i18n: ${sourceKeys.size} keys, 7 locale/fallback cases, packaging and accessibility OK`);

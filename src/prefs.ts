@@ -191,6 +191,8 @@ export default class SheliakPreferences extends ExtensionPreferences {
             _('Show installed applications organized by category'));
         addSwitch(panelGroup, settings, 'show-places-menu', _('Places Menu'),
             _('Show personal folders, bookmarks, and devices'));
+        addSwitch(panelGroup, settings, 'show-network-menu', _('Network Menu'),
+            _('Show network status, Wi-Fi controls, and settings'));
         addSwitch(panelGroup, settings, 'show-system-menu', _('System Menu'),
             _('Show system links, About, and power actions'));
         addSwitch(panelGroup, settings, 'show-search-menu', _('Search Menu'),

@@ -4,7 +4,7 @@
   "description": "Native Lyra ecosystem dock for GNOME Shell",
   "gettext-domain": "sheliak",
   "shell-version": ["48"],
-  "version": 22,
-  "version-name": "1.10.0",
+  "version": 23,
+  "version-name": "1.11.0",
   "url": "https://github.com/britors/Sheliak"
 }
