@@ -4,7 +4,6 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Tracker from 'gi://Tracker';
-import * as ByteArray from 'resource:///org/gnome/gjs/modules/esm/byteArray.js';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -30,6 +29,11 @@ const NETWORK_SETTINGS_PATH = '/org/freedesktop/NetworkManager/Settings';
 const NETWORK_SETTINGS_INTERFACE = 'org.freedesktop.NetworkManager.Settings';
 const NETWORK_CONNECTION_INTERFACE = 'org.freedesktop.NetworkManager.Settings.Connection';
 const NETWORK_ACTIVE_CONNECTION_INTERFACE = 'org.freedesktop.NetworkManager.Connection.Active';
+const UTF8_DECODER = new TextDecoder();
+
+function decodeSsid(bytes: number[] | undefined): string {
+    return bytes?.length ? UTF8_DECODER.decode(Uint8Array.from(bytes)) : '';
+}
 
 type WirelessNetwork = {
     ssid: string;
@@ -938,7 +942,7 @@ class NetworkIndicator {
                     accessPointPath, NETWORK_ACCESS_POINT_INTERFACE);
                 const bytes = accessPoint.get_cached_property('Ssid')
                     ?.deepUnpack() as number[] | undefined;
-                const ssid = bytes?.length ? ByteArray.toString(Uint8Array.from(bytes)) : '';
+                const ssid = decodeSsid(bytes);
                 if (!ssid)
                     continue;
                 const candidate: WirelessNetwork = {
@@ -1016,7 +1020,7 @@ class NetworkIndicator {
                 ? value.deepUnpack() : value;
             const type = unpack(values.connection?.type) as string | undefined;
             const bytes = unpack(values['802-11-wireless']?.ssid) as number[] | undefined;
-            const savedSsid = bytes?.length ? ByteArray.toString(Uint8Array.from(bytes)) : '';
+            const savedSsid = decodeSsid(bytes);
             if (type === '802-11-wireless' && savedSsid === ssid)
                 return path;
         }
