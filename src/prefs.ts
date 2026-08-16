@@ -192,7 +192,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
         addSwitch(panelGroup, settings, 'show-places-menu', _('Places Menu'),
             _('Show personal folders, bookmarks, and devices'));
         addSwitch(panelGroup, settings, 'show-system-menu', _('System Menu'),
-            _('Show shortcuts to Vega settings and the About screen'));
+            _('Show system links, About, and power actions'));
         addSwitch(panelGroup, settings, 'show-search-menu', _('Search Menu'),
             _('Show the application and settings search box'));
         addSwitch(panelGroup, settings, 'hide-workspace-button',

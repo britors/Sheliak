@@ -581,6 +581,15 @@ class SystemIndicator {
         });
         menu.addMenuItem(settingsItem);
 
+        if (this._settings.get_boolean('show-system-about')) {
+            const aboutItem = new PopupMenu.PopupImageMenuItem(_('About'), 'help-about-symbolic');
+            aboutItem.connect('activate', () => {
+                menu.close();
+                this._openSystemAbout();
+            });
+            menu.addMenuItem(aboutItem);
+        }
+
         const powerActions = SystemActions.getDefault() as unknown as PowerActions;
         const powerMenu: PopupMenu.PopupSubMenuMenuItem & {icon?: St.Icon} =
             new PopupMenu.PopupSubMenuMenuItem(_('Power Off'), true);
@@ -598,15 +607,6 @@ class SystemIndicator {
             powerMenu.menu.addMenuItem(item);
         }
         menu.addMenuItem(powerMenu);
-
-        if (this._settings.get_boolean('show-system-about')) {
-            const aboutItem = new PopupMenu.PopupImageMenuItem(_('About'), 'help-about-symbolic');
-            aboutItem.connect('activate', () => {
-                menu.close();
-                this._openSystemAbout();
-            });
-            menu.addMenuItem(aboutItem);
-        }
     }
 
     destroy(): void {
