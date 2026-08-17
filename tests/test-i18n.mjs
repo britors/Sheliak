@@ -61,8 +61,6 @@ assert.match(readFileSync('src/showAppsButton.ts', 'utf8'), /accessible_name: _\
 assert.match(readFileSync('src/trashIcon.ts', 'utf8'), /accessible_name: _\('Trash'\)/);
 assert.match(sources, /_\('Source Code'\), 'applications-engineering-symbolic'/);
 assert.match(sources, /_\('Report an Issue'\), 'dialog-warning-symbolic'/);
-assert.match(sources, /class NetworkIndicator/);
-assert.match(sources, /NETWORK_MANAGER_INTERFACE/);
 assert.doesNotMatch(sources, /(?:title|subtitle|label|text|accessible_name|hint_text):\s*['"][^'"]*[À-ÿ]/);
 
 const spec = readFileSync('packaging/sheliak.spec', 'utf8');

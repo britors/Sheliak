@@ -7,11 +7,9 @@ ocultação inteligente quando uma janela ocupa sua área.
 
 A extensão também permite ajustar a altura da barra superior e ocultar o relógio
 ou os indicadores nativos à direita. Ela oferece menus opcionais de
-**Aplicativos**, **Locais**, **Rede**, **Sistema** e **Busca** nessa barra: Aplicativos são
+**Aplicativos**, **Locais**, **Sistema** e **Busca** nessa barra: Aplicativos são
 organizados por categoria; Locais reúne pastas pessoais, marcadores do
-gerenciador de arquivos e volumes montados; Rede mostra o estado da conexão,
-permite ativar ou desativar a rede e o Wi-Fi e abre as configurações; Sistema
-oferece acesso ao código
+gerenciador de arquivos e volumes montados; Sistema oferece acesso ao código
 fonte, ao relatório de problemas, ao Vega e às informações do sistema; e Busca
 encontra aplicativos e configurações.
 
