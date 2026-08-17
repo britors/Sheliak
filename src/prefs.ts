@@ -184,9 +184,6 @@ export default class SheliakPreferences extends ExtensionPreferences {
             _('Show date and time in the center of the panel'));
         addSwitch(topBarGroup, settings, 'show-panel-indicators', _('Right-side Items'),
             _('Show native GNOME indicators'));
-        addSwitch(topBarGroup, settings, 'hide-main-right-menu',
-            _('Hide Main Right Menu'),
-            _('Hide the native GNOME quick settings menu on the right'));
         panel.add(topBarGroup);
 
         const panelGroup = new Adw.PreferencesGroup({title: _('Panel Menus')});
@@ -197,7 +194,7 @@ export default class SheliakPreferences extends ExtensionPreferences {
         addSwitch(panelGroup, settings, 'show-network-menu', _('Network Menu'),
             _('Show network status, Wi-Fi controls, and settings'));
         addSwitch(panelGroup, settings, 'show-system-menu', _('System Menu'),
-            _('Show system links, About, and power actions'));
+            _('Show system links and system information'));
         addSwitch(panelGroup, settings, 'show-search-menu', _('Search Menu'),
             _('Show the application and settings search box'));
         addSwitch(panelGroup, settings, 'hide-workspace-button',

@@ -42,7 +42,6 @@ export class TopBarManager {
     private _dateMenu: VisibleActor | null;
     private _dateMenuWasVisible: boolean;
     private _rightBox: Clutter.Actor;
-    private _mainRightMenu: VisibleActor | null;
     private _nativeIndicators = new Map<VisibleActor, boolean>();
     private _panelMenuActors = new Set<St.Widget>();
     private _trackedWindows = new Set<Meta.Window>();
@@ -65,7 +64,6 @@ export class TopBarManager {
         const statusArea = Main.panel.statusArea as unknown as Record<string, VisibleActor>;
         this._dateMenu = statusArea.dateMenu ?? null;
         this._dateMenuWasVisible = this._dateMenu?.visible ?? false;
-        this._mainRightMenu = statusArea.quickSettings ?? null;
         this._rightBox = panelRightBox();
         const panel = Main.panel;
         this._panelState = {
@@ -91,8 +89,6 @@ export class TopBarManager {
         this._signals.connect(this._settings, 'changed::show-clock',
             () => this._syncClock());
         this._signals.connect(this._settings, 'changed::show-panel-indicators',
-            () => this._syncIndicators());
-        this._signals.connect(this._settings, 'changed::hide-main-right-menu',
             () => this._syncIndicators());
         this._signals.connect(this._settings, 'changed::floating-panel',
             () => this._syncFloating());
@@ -153,7 +149,6 @@ export class TopBarManager {
         this._trackedWindows.clear();
         this._windowSignals.clear();
         this._dateMenu = null;
-        this._mainRightMenu = null;
     }
 
     private _trackNativeIndicator(actor: Clutter.Actor): void {
@@ -327,10 +322,7 @@ export class TopBarManager {
         }
     }
 
-    private _shouldShowNativeIndicator(actor: VisibleActor): boolean {
-        if (!this._settings.get_boolean('show-panel-indicators'))
-            return false;
-        return actor !== this._mainRightMenu ||
-            !this._settings.get_boolean('hide-main-right-menu');
+    private _shouldShowNativeIndicator(_actor: VisibleActor): boolean {
+        return this._settings.get_boolean('show-panel-indicators');
     }
 }

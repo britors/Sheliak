@@ -32,10 +32,6 @@
   "Home": "Pasta pessoal",
   "Source Code": "Código-fonte",
   "Report an Issue": "Reportar erro",
-  "Power Off": "Desligar",
-  "Suspend": "Suspender",
-  "Restart": "Reiniciar",
-  "Log Out": "Encerrar a sessão",
   "About": "Sobre",
   "Could not open Vega": "Não foi possível abrir o Vega",
   "Could not open system information": "Não foi possível abrir as informações do sistema",
@@ -115,7 +111,7 @@
   "Could not change Wi-Fi": "Não foi possível alterar o Wi-Fi",
   "Could not open network settings": "Não foi possível abrir as configurações de rede",
   "System Menu": "Menu Sistema",
-  "Show system links, About, and power actions": "Mostrar links do sistema, Sobre e ações de energia",
+  "Show system links and system information": "Mostrar links e informações do sistema",
   "Search Menu": "Menu Busca",
   "Show the application and settings search box": "Mostrar a caixa de busca de aplicativos e configurações",
   "Hide Workspaces Button": "Ocultar botão de áreas de trabalho",
@@ -155,7 +151,5 @@
   "Loading VPN connections…": "Carregando conexões VPN…",
   "No VPN connections configured": "Nenhuma conexão VPN configurada",
   "Could not load VPN connections": "Não foi possível carregar as conexões VPN",
-  "Could not change the VPN connection": "Não foi possível alterar a conexão VPN",
-  "Hide Main Right Menu": "Ocultar menu principal da direita",
-  "Hide the native GNOME quick settings menu on the right": "Ocultar o menu nativo de configurações rápidas do GNOME à direita"
+  "Could not change the VPN connection": "Não foi possível alterar a conexão VPN"
 }

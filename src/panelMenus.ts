@@ -8,7 +8,6 @@ import Tracker from 'gi://Tracker';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {SignalTracker} from './signals.js';
@@ -69,13 +68,6 @@ type SearchItem = {
     icon: Gio.Icon | string;
     keywords: string;
     activate: () => void;
-};
-
-type PowerActions = {
-    activateSuspend: () => void;
-    activateRestart: () => void;
-    activatePowerOff: () => void;
-    activateLogout: () => void;
 };
 
 const LYRA_SOURCE_URL = 'https://github.com/britors/lyra';
@@ -638,23 +630,6 @@ class SystemIndicator {
             menu.addMenuItem(aboutItem);
         }
 
-        const powerActions = SystemActions.getDefault() as unknown as PowerActions;
-        const powerMenu: PopupMenu.PopupSubMenuMenuItem & {icon?: St.Icon} =
-            new PopupMenu.PopupSubMenuMenuItem(_('Power Off'), true);
-        if (powerMenu.icon)
-            powerMenu.icon.icon_name = 'system-shutdown-symbolic';
-        const actions: Array<[string, string, () => void]> = [
-            [_('Suspend'), 'media-playback-pause-symbolic', () => powerActions.activateSuspend()],
-            [_('Restart'), 'system-reboot-symbolic', () => powerActions.activateRestart()],
-            [_('Power Off'), 'system-shutdown-symbolic', () => powerActions.activatePowerOff()],
-            [_('Log Out'), 'system-log-out-symbolic', () => powerActions.activateLogout()],
-        ];
-        for (const [label, icon, activate] of actions) {
-            const item = new PopupMenu.PopupImageMenuItem(label, icon);
-            item.connect('activate', activate);
-            powerMenu.menu.addMenuItem(item);
-        }
-        menu.addMenuItem(powerMenu);
     }
 
     destroy(): void {
@@ -1506,7 +1481,7 @@ export class PanelMenus {
         if (this._settings.get_boolean('show-search-menu')) {
             this._search = new SearchIndicator();
             Main.panel.addToStatusArea(
-                'sheliak-search', this._search.button, 0, 'right');
+                'sheliak-search', this._search.button, position, box);
         }
     }
 

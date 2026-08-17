@@ -16,7 +16,7 @@ applications, a dynamic Trash icon, application menus, and the native
 applications grid button. It also configures the top panel size and visibility
 of the clock and native indicators, and provides Applications, Places, Network,
 System, and Search menus. The Network menu controls networking and Wi-Fi through
-NetworkManager. In the System menu, About is followed by the power-actions submenu.
+NetworkManager. The System menu provides system information and Lyra OS links.
 
 %prep
 %autosetup

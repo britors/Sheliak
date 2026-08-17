@@ -12,10 +12,8 @@ organizados por categoria; Locais reúne pastas pessoais, marcadores do
 gerenciador de arquivos e volumes montados; Rede mostra o estado da conexão,
 permite ativar ou desativar a rede e o Wi-Fi e abre as configurações; Sistema
 oferece acesso ao código
-fonte, ao relatório de problemas, ao Vega, às informações do sistema e às ações
-de energia; e Busca encontra aplicativos e configurações. No menu Sistema,
-**Sobre** aparece imediatamente antes de **Desligar**, que reúne as ações
-Suspender, Reiniciar, Desligar e Encerrar sessão.
+fonte, ao relatório de problemas, ao Vega e às informações do sistema; e Busca
+encontra aplicativos e configurações.
 
 Cada menu, sua posição e seus conteúdos dinâmicos podem ser configurados na
 página Barra superior das preferências. A mesma página permite ocultar o botão
